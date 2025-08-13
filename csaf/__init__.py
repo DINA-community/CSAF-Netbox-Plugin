@@ -1,7 +1,6 @@
 import sys
 import os
 from netbox.plugins import PluginConfig
-from .populate import REPO
 
 from django.core.signals import request_started
 
