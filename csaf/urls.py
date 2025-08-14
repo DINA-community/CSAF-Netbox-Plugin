@@ -12,4 +12,6 @@ urlpatterns = (
     path('csafdocument/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='csafdocument_changelog', kwargs={
         'model': models.CsafDocument
     }),
+    
+    path('device/<int:pk>/csafmatches/', views.CsafMatchListForDeviceView.as_view(), name='csafmatchlistfordevice'),
 )
