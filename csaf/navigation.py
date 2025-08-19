@@ -13,16 +13,21 @@ csafDocumentItem = PluginMenuItem(
     link_text='CSAF Documents',
     buttons=()
 )
+csafMatchItem = PluginMenuItem(
+    link='plugins:csaf:csafmatch_list',
+    link_text='CSAF Matches',
+    buttons=()
+)
 
 _menu_items_models = (
-    csafDocumentItem
+    csafDocumentItem, csafMatchItem
 )
 
 
 menu = PluginMenu(
     label="CSAF",
     groups=(
-        ("Models", (csafDocumentItem,)),
+        ("Models", (csafDocumentItem, csafMatchItem,)),
     ),
     icon_class="mdi mdi-gamma",
 )

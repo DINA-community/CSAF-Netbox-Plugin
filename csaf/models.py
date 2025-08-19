@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from netbox.models import NetBoxModel
 
 class CsafDocument(NetBoxModel):
@@ -78,10 +79,10 @@ class CsafMatch(NetBoxModel):
         related_name='csaf_matches',
     )
     score = models.DecimalField(
-        decimal_places=6,
+        decimal_places=5,
         max_digits=6
     )
-    time = models.DateTimeField()
+    time = models.DateTimeField(default=timezone.now)
     status = models.CharField(
         max_length=1,
         choices=Status,

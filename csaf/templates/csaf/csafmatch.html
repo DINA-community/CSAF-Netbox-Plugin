@@ -18,31 +18,35 @@
   <div class="row mb-3">
     <div class="col col-md-6">
       <div class="card">
-        <h5 class="card-header">CSAF Document</h5>
+        <h5 class="card-header">CSAF Match</h5>
           <table class="table table-hover attr-table">
             <tr>
               <th scope="row">id</th>
               <td>{{ object.id }}</td>
             </tr>
             <tr>
-              <th scope="row">Title</th>
-              <td>{{ object.title|placeholder }}</td>
+              <th scope="row">Device</th>
+              <td>{{ object.device|linkify }}</td>
             </tr>
             <tr>
-              <th scope="row">Version</th>
-              <td>{{ object.version }}</td>
+              <th scope="row">Software</th>
+              <td>{{ object.software|linkify }}</td>
             </tr>
             <tr>
-              <th scope="row">URL</th>
-              <td>{{ object.url|placeholder }}</td>
+              <th scope="row">Document</th>
+              <td>{{ object.csaf_document|linkify }}</td>
             </tr>
             <tr>
-              <th scope="row">Language</th>
-              <td>{{ object.lang|placeholder }}</td>
+              <th scope="row">Score</th>
+              <td>{{ object.score }}</td>
             </tr>
             <tr>
-              <th scope="row">Publisher</th>
-              <td>{{ object.publisher|placeholder }}</td>
+              <th scope="row">Time</th>
+              <td>{{ object.time|placeholder }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Status</th>
+              <td>{{ object.status }}</td>
             </tr>
           </table>
       </div>

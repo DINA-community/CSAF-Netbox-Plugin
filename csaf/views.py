@@ -5,18 +5,7 @@ from django.views.generic import View
 from netbox.views import generic
 from utilities.views import ViewTab, register_model_view
 from . import forms, models, tables
-
-
-@register_model_view(models.CsafDocument, 'edit')
-class CsafDocumentEditView(generic.ObjectEditView):
-    """ This view handles the edit requests for the CsafDocument model. """
-    queryset = models.CsafDocument.objects.all()
-    form = forms.CsafDocumentForm
-
-
-class CsafDocumentDeleteView(generic.ObjectDeleteView):
-    """ This view handles the delete requests for the CsafDocument model. """
-    queryset = models.CsafDocument.objects.all()
+from d3c.models import Software
 
 
 class CsafDocumentView(generic.ObjectView):
@@ -29,8 +18,20 @@ class CsafDocumentListView(generic.ObjectListView):
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafDocumentTable
 
+
+class CsafDocumentEditView(generic.ObjectEditView):
+    """ This view handles the edit requests for the CsafDocument model. """
+    queryset = models.CsafDocument.objects.all()
+    form = forms.CsafDocumentForm
+
+
+class CsafDocumentDeleteView(generic.ObjectDeleteView):
+    """ This view handles the delete requests for the CsafDocument model. """
+    queryset = models.CsafDocument.objects.all()
+
+
 # CsafMatches view for one device
-@register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches')
+@register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )
 class CsafMatchListForDeviceView(View):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
     base_template = 'dcim/device.html'
@@ -39,7 +40,10 @@ class CsafMatchListForDeviceView(View):
 
     tab = ViewTab(
         label='CSAF Matches',
-        badge=lambda obj: models.CsafMatch.objects.filter(device=obj, status=('NEW',"Confirmed")).count()
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            device=obj,
+            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            .count()
     )
 
     def get(self, request, **kwargs):
@@ -52,3 +56,63 @@ class CsafMatchListForDeviceView(View):
             'base_template': self.base_template,
             'tab': self.tab,
         })
+
+
+@register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatches', )
+class CsafMatchListForCsafDocumentView(generic.ObjectChildrenView):
+    queryset = models.CsafDocument.objects.all()
+    child_model = models.CsafMatch
+    table = tables.CsafMatchListForCsafDocumentTable
+    template_name = 'generic/object_children.html'
+    # filterset = filtersets.ConsolePortFilterSet
+    tab = ViewTab(
+        label='CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            csaf_document=obj,
+            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            .count()
+    )
+
+    def get_children(self, request, parent):
+        return self.child_model.objects.filter(csaf_document=parent)
+
+
+@register_model_view(model=Software, name='matchlistforsoftware', path='csafmatches', )
+class CsafMatchListForSoftwareView(generic.ObjectChildrenView):
+    queryset = Software.objects.all()
+    child_model = models.CsafMatch
+    table = tables.CsafMatchListForSoftwareTable
+    template_name = 'generic/object_children.html'
+    # filterset = filtersets.ConsolePortFilterSet
+    tab = ViewTab(
+        label='CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            software=obj,
+            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            .count()
+    )
+
+    def get_children(self, request, parent):
+        return self.child_model.objects.filter(software=parent)
+
+
+class CsafMatchView(generic.ObjectView):
+    """ This view handles the request for displaying a CsafMatch. """
+    queryset = models.CsafMatch.objects.all()
+
+
+class CsafMatchListView(generic.ObjectListView):
+    """ This view handles the request for displaying multiple CsafMatches as a table. """
+    queryset = models.CsafMatch.objects.all()
+    table = tables.CsafMatchTable
+
+
+class CsafMatchEditView(generic.ObjectEditView):
+    """ This view handles the edit requests for the CsafMatch model. """
+    queryset = models.CsafMatch.objects.all()
+    form = forms.CsafMatchForm
+
+
+class CsafMatchDeleteView(generic.ObjectDeleteView):
+    """ This view handles the delete requests for the CsafMatch model. """
+    queryset = models.CsafMatch.objects.all()

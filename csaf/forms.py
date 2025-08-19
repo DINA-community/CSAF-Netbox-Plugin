@@ -2,6 +2,7 @@
     This file provides all the input forms implemented by the CSAF-Plugin.
 """
 
+import datetime
 from .models import CsafDocument, CsafMatch
 from dcim.models.devices import Device
 from django import forms
@@ -27,4 +28,13 @@ class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
     title = forms.CharField(required=False)
     url = forms.BooleanField(required=False)
     publisher = forms.CharField(required=False)
+
+
+class CsafMatchForm(NetBoxModelForm):
+    """
+    Input Form for the CsafMatch model.
+    """
+    class Meta:
+        model = CsafMatch
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
 

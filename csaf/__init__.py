@@ -1,9 +1,4 @@
-import sys
-import os
 from netbox.plugins import PluginConfig
-
-from django.core.signals import request_started
-
 
 class NetBoxCsafConfig(PluginConfig):
     """
