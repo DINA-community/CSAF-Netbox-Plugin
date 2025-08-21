@@ -8,26 +8,58 @@ from . import forms, models, tables
 from d3c.models import Software
 
 
+@register_model_view(models.CsafDocument)
 class CsafDocumentView(generic.ObjectView):
     """ This view handles the request for displaying a CsafDocument. """
     queryset = models.CsafDocument.objects.all()
 
 
+@register_model_view(models.CsafDocument, name='list', detail=False)
 class CsafDocumentListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafDocuments as a table. """
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafDocumentTable
 
 
+@register_model_view(models.CsafDocument, name='add', detail=False)
+@register_model_view(models.CsafDocument, name='edit')
 class CsafDocumentEditView(generic.ObjectEditView):
     """ This view handles the edit requests for the CsafDocument model. """
     queryset = models.CsafDocument.objects.all()
     form = forms.CsafDocumentForm
 
 
+@register_model_view(models.CsafDocument, name='delete')
 class CsafDocumentDeleteView(generic.ObjectDeleteView):
     """ This view handles the delete requests for the CsafDocument model. """
     queryset = models.CsafDocument.objects.all()
+
+
+@register_model_view(models.CsafMatch)
+class CsafMatchView(generic.ObjectView):
+    """ This view handles the request for displaying a CsafMatch. """
+    queryset = models.CsafMatch.objects.all()
+
+
+@register_model_view(models.CsafMatch, name='list', detail=False)
+class CsafMatchListView(generic.ObjectListView):
+    """ This view handles the request for displaying multiple CsafMatches as a table. """
+    queryset = models.CsafMatch.objects.all()
+    table = tables.CsafMatchTable
+
+
+@register_model_view(models.CsafMatch, name='add', detail=False)
+@register_model_view(models.CsafMatch, name='edit')
+class CsafMatchEditView(generic.ObjectEditView):
+    """ This view handles the edit requests for the CsafMatch model. """
+    queryset = models.CsafMatch.objects.all()
+    form = forms.CsafMatchForm
+
+
+@register_model_view(models.CsafMatch, name='delete')
+class CsafMatchDeleteView(generic.ObjectDeleteView):
+    """ This view handles the delete requests for the CsafMatch model. """
+    queryset = models.CsafMatch.objects.all()
 
 
 # CsafMatches view for one device
@@ -95,24 +127,3 @@ class CsafMatchListForSoftwareView(generic.ObjectChildrenView):
     def get_children(self, request, parent):
         return self.child_model.objects.filter(software=parent)
 
-
-class CsafMatchView(generic.ObjectView):
-    """ This view handles the request for displaying a CsafMatch. """
-    queryset = models.CsafMatch.objects.all()
-
-
-class CsafMatchListView(generic.ObjectListView):
-    """ This view handles the request for displaying multiple CsafMatches as a table. """
-    queryset = models.CsafMatch.objects.all()
-    table = tables.CsafMatchTable
-
-
-class CsafMatchEditView(generic.ObjectEditView):
-    """ This view handles the edit requests for the CsafMatch model. """
-    queryset = models.CsafMatch.objects.all()
-    form = forms.CsafMatchForm
-
-
-class CsafMatchDeleteView(generic.ObjectDeleteView):
-    """ This view handles the delete requests for the CsafMatch model. """
-    queryset = models.CsafMatch.objects.all()

@@ -78,10 +78,7 @@ class CsafMatch(NetBoxModel):
         on_delete=models.CASCADE,
         related_name='csaf_matches',
     )
-    score = models.DecimalField(
-        decimal_places=5,
-        max_digits=6
-    )
+    score = models.FloatField(default=0.0)
     time = models.DateTimeField(default=timezone.now)
     status = models.CharField(
         max_length=1,
