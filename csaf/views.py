@@ -1,5 +1,6 @@
 from dcim.models import Device
-from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count, OuterRef, Subquery, QuerySet
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, render
 from django.views.generic import View
 from netbox.views import generic
@@ -17,7 +18,16 @@ class CsafDocumentView(generic.ObjectView):
 @register_model_view(models.CsafDocument, name='list', detail=False)
 class CsafDocumentListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafDocuments as a table. """
-    queryset = models.CsafDocument.objects.all()
+    queryset = models.CsafDocument.objects.annotate(
+        match_count=Coalesce(Subquery(
+            models.CsafMatch.objects.filter(
+                **{'csaf_document': OuterRef('pk')}
+            ).filter(status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED]).values(
+                'csaf_document'
+            ).annotate(
+                c=Count('*')
+            ).values('c')), 0),
+    )
     table = tables.CsafDocumentTable
 
 
