@@ -137,3 +137,41 @@ class CsafMatchListForSoftwareView(generic.ObjectChildrenView):
     def get_children(self, request, parent):
         return self.child_model.objects.filter(software=parent)
 
+
+@register_model_view(Device, name='withmatches', path='withmatches', detail=False)
+class DeviceListWithCsafMatches(generic.ObjectListView):
+    """ This view handles the request for displaying Devices with CsafMatches as a table. """
+    queryset = Device.objects.annotate(
+            new_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'device': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.NEW)
+                    .values('device')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            confirmed_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'device': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.CONFIRMED)
+                    .values('device')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            resolved_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'device': OuterRef('pk')})
+                    .filter(status__in=[models.CsafMatch.Status.FALSE_POSITIVE,models.CsafMatch.Status.RESOLVED])
+                    .values('device')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            total_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'device': OuterRef('pk')})
+                    .values('device')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).filter(total_count__gt=0)
+    table = tables.DevicesWithMatchTable
+

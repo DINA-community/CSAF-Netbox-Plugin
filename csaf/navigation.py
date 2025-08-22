@@ -18,16 +18,21 @@ csafMatchItem = PluginMenuItem(
     link_text='CSAF Matches',
     buttons=()
 )
+devicesWithMatches = PluginMenuItem(
+    link='dcim:device_withmatches',
+    link_text='Devices with Matches',
+    buttons=()
+)
 
 _menu_items_models = (
-    csafDocumentItem, csafMatchItem
+    csafDocumentItem, csafMatchItem, devicesWithMatches
 )
 
 
 menu = PluginMenu(
     label="CSAF",
     groups=(
-        ("Models", (csafDocumentItem, csafMatchItem,)),
+        ("Models", (csafDocumentItem, csafMatchItem, devicesWithMatches,)),
     ),
     icon_class="mdi mdi-gamma",
 )
