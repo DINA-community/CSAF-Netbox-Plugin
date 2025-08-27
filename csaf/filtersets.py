@@ -1,6 +1,9 @@
+import django_filters
+from django import forms
+from django.db.models import Q
+from netbox.forms import NetBoxModelFilterSetForm
 from netbox.filtersets import NetBoxModelFilterSet
 from .models import CsafDocument, CsafMatch
-from django.db.models import Q
 
 
 class CsafDocumentFilterSet(NetBoxModelFilterSet):
@@ -21,8 +24,13 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
+        fields = ()
 
-    def search(self, queryset, description, value):
-        return queryset.filter(description__icontains=value)
+    status = django_filters.MultipleChoiceFilter(
+        choices=CsafMatch.Status,
+        null_value=None
+    )
+
+    def search(self, queryset, status, value):
+        return queryset.filter(status__in=value)
 

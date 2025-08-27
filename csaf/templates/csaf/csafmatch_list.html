@@ -1,0 +1,27 @@
+{% extends base_template %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+  <div class="row mb-3">
+
+    <div class="row mb-3">
+      <div class="col-auto table-controls noprint">
+        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=N">New</a>&nbsp;
+        <a class="btn {% if status.C %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=C">Confirmed</a>
+        <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=R">Resolved</a>
+        <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=F">False Positive</a>
+        &nbsp;&nbsp;
+      </div>
+    </div>
+
+    <div class="col col-md-12">
+      <div class="card">
+            <div class="htmx-container table-responsive" id="object_list">
+              {% render_table table 'inc/table.html' %}
+              {% include 'inc/paginator.html' with paginator=table.paginator page=table.page %}
+            </div>
+          </div>
+
+    </div>
+  </div>
+{% endblock %}

@@ -42,8 +42,7 @@ class CsafDocument(NetBoxModel):
         verbose_name_plural = 'CsafDocuments'
 
     def __str__(self):
-        version = ' ' + self.version if self.version else ''
-        return self.title + version
+        return self.title
 
     @property
     def docs_url(self):

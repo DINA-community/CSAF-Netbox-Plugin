@@ -27,6 +27,15 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     """
         Table for the CsafMatches for a single device
     """
+    device = tables.Column(
+        linkify=True
+    )
+    software = tables.Column(
+        linkify=True
+    )
+    csaf_document = tables.Column(
+        linkify=True
+    )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
@@ -36,6 +45,15 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
         Table for the CsafMatches for a single CsafDocument
     """
+    device = tables.Column(
+        linkify=True
+    )
+    software = tables.Column(
+        linkify=True
+    )
+    csaf_document = tables.Column(
+        linkify=True
+    )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
@@ -45,6 +63,15 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     """
         Table for the CsafMatches for a single Software
     """
+    device = tables.Column(
+        linkify=True
+    )
+    software = tables.Column(
+        linkify=True
+    )
+    csaf_document = tables.Column(
+        linkify=True
+    )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
