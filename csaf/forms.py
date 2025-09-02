@@ -6,7 +6,7 @@ import datetime
 from .models import CsafDocument, CsafMatch
 from dcim.models.devices import Device
 from django import forms
-from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm
+from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelBulkEditForm
 from utilities.forms.fields import DynamicModelMultipleChoiceField
 from django.contrib.postgres.forms import SimpleArrayField
 
@@ -38,3 +38,10 @@ class CsafMatchForm(NetBoxModelForm):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
 
+
+class CsafMatchBulkEditForm(NetBoxModelBulkEditForm):
+    model = CsafMatch
+    status = forms.ChoiceField(
+        choices=CsafMatch.Status,
+        required=False
+    )
