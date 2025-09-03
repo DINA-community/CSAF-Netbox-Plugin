@@ -83,6 +83,15 @@ class CsafMatchTable(NetBoxTable):
     """
         Table for the CsafMatch model.
     """
+    device = tables.Column(
+        linkify=True
+    )
+    software = tables.Column(
+        linkify=True
+    )
+    csaf_document = tables.Column(
+        linkify=True
+    )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
