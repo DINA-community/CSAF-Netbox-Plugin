@@ -71,6 +71,8 @@ class CsafMatch(NetBoxModel):
         to='d3c.Software',
         on_delete=models.CASCADE,
         related_name='csaf_matches',
+        blank=True,
+        null=True
     )
     csaf_document = models.ForeignKey(
         to='csaf.CsafDocument',
