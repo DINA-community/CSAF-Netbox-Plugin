@@ -81,6 +81,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     child_model = models.CsafMatch
     base_template = 'generic/object_children.html'
     template_name = 'csaf/csafmatch_list.html'
+    linkName = 'None'
 
     def get_children_for(self, parent):
         return self.child_model.objects
@@ -133,6 +134,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         return render(request, self.get_template_name(), {
             'object': instance,
+            'link_name': self.linkName,
             'model': self.child_model,
             'child_model': self.child_model,
             'base_template': f'{instance._meta.app_label}/{instance._meta.model_name}.html',
@@ -154,6 +156,7 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
     queryset = Device.objects.all()
     table = tables.CsafMatchListForDeviceTable
+    linkName= 'device'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -171,6 +174,7 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
 class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafMatchListForCsafDocumentTable
+    linkName= 'document'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -189,6 +193,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
 class CsafMatchListForSoftwareView(CsafMatchListFor):
     queryset = Software.objects.all()
     table = tables.CsafMatchListForSoftwareTable
+    linkName= 'software'
 
     tab = ViewTab(
         label='CSAF Matches',
