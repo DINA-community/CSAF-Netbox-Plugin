@@ -91,6 +91,10 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         logger.debug("POST from Match List")
         instance = self.get_object(**kwargs)
 
+        user = request.user
+        if not user.has_perms(('csaf.edit_csafmatch',)):
+            return self.handle_no_permission()
+
         targetStatus = request.POST.get('targetStatus', "")
         if targetStatus not in ['N', 'C', 'R', 'F']:
             messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
@@ -154,6 +158,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 @register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )
 class CsafMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
+    additional_permissions=('csaf.view_csafmatch',)
     queryset = Device.objects.all()
     table = tables.CsafMatchListForDeviceTable
     linkName= 'device'
@@ -163,7 +168,8 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
         badge=lambda obj: models.CsafMatch.objects.filter(
             device=obj,
             status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
-            .count()
+            .count(),
+        permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):
@@ -172,6 +178,8 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
 
 @register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatches', )
 class CsafMatchListForCsafDocumentView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a CsafDocument. """
+    additional_permissions=('csaf.view_csafmatch',)
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafMatchListForCsafDocumentTable
     linkName= 'document'
@@ -181,7 +189,8 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
         badge=lambda obj: models.CsafMatch.objects.filter(
             csaf_document=obj,
             status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
-            .count()
+            .count(),
+        permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):
@@ -191,6 +200,8 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
 
 @register_model_view(model=Software, name='matchlistforsoftware', path='csafmatches', )
 class CsafMatchListForSoftwareView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """
+    additional_permissions=('csaf.view_csafmatch',)
     queryset = Software.objects.all()
     table = tables.CsafMatchListForSoftwareTable
     linkName= 'software'
@@ -200,7 +211,8 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
         badge=lambda obj: models.CsafMatch.objects.filter(
             software=obj,
             status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
-            .count()
+            .count(),
+        permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):

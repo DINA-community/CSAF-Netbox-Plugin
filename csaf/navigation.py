@@ -11,16 +11,19 @@ plugin_settings = settings.PLUGINS_CONFIG["csaf"]
 csafDocumentItem = PluginMenuItem(
     link='plugins:csaf:csafdocument_list',
     link_text='CSAF Documents',
+    permissions=('csaf.view_csafdocument',),
     buttons=()
 )
 csafMatchItem = PluginMenuItem(
     link='plugins:csaf:csafmatch_list',
     link_text='CSAF Matches',
+    permissions=('csaf.view_csafmatch',),
     buttons=()
 )
 devicesWithMatches = PluginMenuItem(
     link='dcim:device_withmatches',
     link_text='Devices with Matches',
+    permissions=('csaf.view_csafdocument','dcim.view_device'),
     buttons=()
 )
 
