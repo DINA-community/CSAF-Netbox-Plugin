@@ -12,7 +12,7 @@ class CsafDocumentFilterSet(NetBoxModelFilterSet):
     """
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'url', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
 
     def search(self, queryset, title, value):
         return queryset.filter(title__icontains=value)

@@ -15,8 +15,8 @@ class CsafDocumentTable(NetBoxTable):
     """
     class Meta(NetBoxTable.Meta):
         model = CsafDocument
-        fields = ('id', 'title', 'url', 'version', 'lang', 'publisher', 'match_count')
-        default_columns = ('id', 'title', 'url', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher', 'match_count')
+        default_columns = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
 
     title = tables.Column(
         linkify=True,

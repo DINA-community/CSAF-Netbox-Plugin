@@ -14,7 +14,7 @@ class CsafDocument(NetBoxModel):
         blank=False,
         null=False
     )
-    url = models.CharField(
+    docurl = models.CharField(
         max_length=1000,
         blank=False,
         null=False

@@ -10,7 +10,7 @@ class CsafDocumentSerializer(NetBoxModelSerializer):
     """
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'url', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
 
 
 class CsafMatchSerializer(NetBoxModelSerializer):
