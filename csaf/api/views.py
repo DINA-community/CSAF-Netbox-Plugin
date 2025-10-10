@@ -1,12 +1,23 @@
 """
     These classes are needed for bulk update and delete operations.
 """
-from netbox.api.viewsets import NetBoxModelViewSet
 from .. import filtersets, models
 from .serializers import CsafDocumentSerializer, CsafMatchSerializer
-
+from core.choices import JobIntervalChoices
+from datetime import datetime, timedelta
+from django.conf import settings
 from django.db.models import Count
+import requests
+from rq.utils import now
+from netbox.api.viewsets import NetBoxModelViewSet
+from netbox.jobs import JobRunner, system_job
 from rest_framework.response import Response
+from rest_framework import status
+
+
+TITLE_LOADING = "Loading..."
+TITLE_FAILED = "Loading Failed."
+
 
 class CsafDocumentViewSet(NetBoxModelViewSet):
     """
@@ -40,28 +51,99 @@ class CsafDocumentForUrlView(NetBoxModelViewSet):
         data = request.data
         docurl = data.get('docurl')
         if not docurl:
-            return Response("Missing docurl", status=404)
+            return Response("Missing docurl", status = status.HTTP_404_NOT_FOUND)
 
         query = models.CsafDocument.objects.filter(docurl = docurl)
         try:
             entity = query.get()
         except models.CsafDocument.DoesNotExist:
             if "title" not in data:
-                data["title"] = docurl
+                data["title"] = TITLE_LOADING
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
+            CsafDocSyncJob.enqueue(schedule_at = now() + timedelta(seconds=10))
             headers = self.get_success_headers(serializer.data)
             data = {
                 "id": serializer.data.get("id")
             }
-            return Response(data, status=201, headers=headers)
+            return Response(data, status = status.HTTP_201_CREATED, headers=headers)
 
         data = {
             "id": entity.id
         }
-        return Response(data, status=400)
+        return Response(data, status = status.HTTP_400_BAD_REQUEST)
 
+
+def fetchLoadingDocuments():
+    query = models.CsafDocument.objects.filter(title = TITLE_LOADING)
+    token = False
+    for doc in query:
+        docurl = doc.docurl
+        if not token:
+            token = getToken()
+        headers = {
+            'authorization': 'Bearer ' + token
+        }
+        result = requests.get(
+            url=docurl,
+            headers=headers
+        )
+        try:
+            jsonDoc = result.json()
+            doc.lang = getFromJson(jsonDoc, ('document','lang'), '-')
+            doc.title = getFromJson(jsonDoc, ('document','title'), 'No Title')
+            doc.version = getFromJson(jsonDoc, ('document','tracking', 'version'), '-')
+            doc.publisher = getFromJson(jsonDoc, ('document','publisher', 'name'), 'No Publisher')
+            print(f"Loaded: {doc.title}")
+            doc.save()
+        except requests.exceptions.JSONDecodeError as e:
+            print(e)
+            doc.title = TITLE_FAILED
+            if not doc.version or int(doc.version) != doc.version:
+                doc.version = 1
+            else:
+                doc.version = int(doc.version) + 1
+            doc.save()
+
+
+def getFromJson(document, path, dflt):
+    current = document
+    try:
+        for p in path:
+            current = current.get(p)
+        return current
+    except Exception:
+        return dflt
+
+def getToken() -> str:
+    """Retrieve an access token via Keycloak."""
+    keycloakUrl = settings.PLUGINS_CONFIG['csaf']['isduba_keycloak_url']
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_keycloak_verify_ssl'), True)
+    username = settings.PLUGINS_CONFIG['csaf']['isduba_username']
+    password = settings.PLUGINS_CONFIG['csaf']['isduba_password']
+
+    token_url = f"{keycloakUrl}/realms/isduba/protocol/openid-connect/token"
+    response = requests.post(
+        token_url,
+        data={
+            "grant_type": "password",
+            "client_id": "auth",
+            "username": username,
+            "password": password,
+        },
+        verify=verifySsl,
+    )
+    return response.json().get("access_token")
+
+
+@system_job(interval=JobIntervalChoices.INTERVAL_HOURLY)
+class CsafDocSyncJob(JobRunner):
+    class Meta:
+        name = "CSAF Document Sync"
+
+    def run(self, *args, **kwargs):
+        fetchLoadingDocuments()
 
 
 class CsafMatchViewSet(NetBoxModelViewSet):
