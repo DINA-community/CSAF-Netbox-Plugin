@@ -17,6 +17,7 @@ from rest_framework import status
 
 TITLE_LOADING = "Loading..."
 TITLE_FAILED = "Loading Failed."
+TITLE_NOT_FOUND = "No Document Found"
 
 
 class CsafDocumentViewSet(NetBoxModelViewSet):
@@ -91,10 +92,14 @@ def fetchLoadingDocuments():
         )
         try:
             jsonDoc = result.json()
-            doc.lang = getFromJson(jsonDoc, ('document','lang'), '-')
-            doc.title = getFromJson(jsonDoc, ('document','title'), 'No Title')
-            doc.version = getFromJson(jsonDoc, ('document','tracking', 'version'), '-')
-            doc.publisher = getFromJson(jsonDoc, ('document','publisher', 'name'), 'No Publisher')
+            code = getFromJson(jsonDoc, ('code',), 200)
+            if code == 404:
+                doc.title = TITLE_NOT_FOUND
+            else:
+                doc.lang = getFromJson(jsonDoc, ('document','lang'), None)
+                doc.title = getFromJson(jsonDoc, ('document','title'), 'No Title')
+                doc.version = getFromJson(jsonDoc, ('document','tracking', 'version'), None)
+                doc.publisher = getFromJson(jsonDoc, ('document','publisher', 'name'), None)
             print(f"Loaded: {doc.title}")
             doc.save()
         except requests.exceptions.JSONDecodeError as e:
