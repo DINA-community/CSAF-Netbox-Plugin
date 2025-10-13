@@ -54,26 +54,28 @@ class CsafDocumentForUrlView(NetBoxModelViewSet):
         if not docurl:
             return Response("Missing docurl", status = status.HTTP_404_NOT_FOUND)
 
-        query = models.CsafDocument.objects.filter(docurl = docurl)
-        try:
-            entity = query.get()
-        except models.CsafDocument.DoesNotExist:
-            if "title" not in data:
-                data["title"] = TITLE_LOADING
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            CsafDocSyncJob.enqueue(schedule_at = now() + timedelta(seconds=10))
-            headers = self.get_success_headers(serializer.data)
-            data = {
-                "id": serializer.data.get("id")
-            }
-            return Response(data, status = status.HTTP_201_CREATED, headers=headers)
-
-        data = {
-            "id": entity.id
+        docId = createDocumentForData(data)
+        result = {
+            "id": docId
         }
-        return Response(data, status = status.HTTP_400_BAD_REQUEST)
+        return Response(result, status = status.HTTP_200_OK)
+
+
+def createDocumentForData(data):
+    docurl = data.get('docurl')
+    query = models.CsafDocument.objects.filter(docurl = docurl)
+    try:
+        entity = query.get()
+    except models.CsafDocument.DoesNotExist:
+        if "title" not in data:
+            data["title"] = TITLE_LOADING
+        serializer = CsafDocumentSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        CsafDocSyncJob.enqueue(schedule_at = now() + timedelta(seconds=10))
+        return serializer.data.get("id")
+
+    return entity.id
 
 
 def fetchLoadingDocuments():
@@ -158,3 +160,18 @@ class CsafMatchViewSet(NetBoxModelViewSet):
     queryset = models.CsafMatch.objects.all()
     serializer_class = CsafMatchSerializer
     filterset_class = filtersets.CsafMatchFilterSet
+
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, list):
+            for data in request.data:
+                if isinstance(data.get('csaf_document'), str):
+                    data['csaf_document'] = createDocumentForData({'docurl':data['csaf_document']})
+        else:
+            if isinstance(request.data.get('csaf_document'), str):
+                request.data['csaf_document'] = createDocumentForData({'docurl':request.data['csaf_document']})
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
