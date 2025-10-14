@@ -17,7 +17,8 @@ class CsafDocument(NetBoxModel):
     docurl = models.CharField(
         max_length=1000,
         blank=False,
-        null=False
+        null=False,
+        unique=True
     )
     version = models.CharField(
         max_length=50,
