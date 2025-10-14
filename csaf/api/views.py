@@ -4,16 +4,16 @@
 from .. import filtersets, models
 from .serializers import CsafDocumentSerializer, CsafMatchSerializer
 from core.choices import JobIntervalChoices
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.conf import settings
-from django.db.models import Count
+from django.db import IntegrityError
 import requests
 from rq.utils import now
 from netbox.api.viewsets import NetBoxModelViewSet
 from netbox.jobs import JobRunner, system_job
-from rest_framework.response import Response
 from rest_framework import status
-
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 
 TITLE_LOADING = "Loading..."
 TITLE_FAILED = "Loading Failed."
@@ -70,10 +70,15 @@ def createDocumentForData(data):
         if "title" not in data:
             data["title"] = TITLE_LOADING
         serializer = CsafDocumentSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        CsafDocSyncJob.enqueue(schedule_at = now() + timedelta(seconds=10))
-        return serializer.data.get("id")
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            CsafDocSyncJob.enqueue(schedule_at = now() + timedelta(seconds=10))
+            return serializer.data.get("id")
+        except (ValidationError, IntegrityError) as ex:
+            # Race condition, someone else just created the document
+            query = models.CsafDocument.objects.filter(docurl = docurl)
+            entity = query.get()
 
     return entity.id
 
