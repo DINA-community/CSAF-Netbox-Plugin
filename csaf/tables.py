@@ -4,6 +4,7 @@
 import django_tables2 as tables
 from dcim.models import Device
 from dcim.tables.devices import DeviceTable
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable
 from .models import (CsafDocument, CsafMatch)
@@ -16,12 +17,19 @@ class CsafDocumentTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CsafDocument
         fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher', 'match_count')
-        default_columns = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
+        default_columns = ('id', 'title', 'docurl', 'link', 'version', 'lang', 'publisher')
 
     title = tables.Column(
         linkify=True,
         verbose_name='Title'
     )
+    link = tables.Column(
+        accessor='docurl',
+        verbose_name='Link')
+
+    def render_link(self, value):
+        external = value.replace("/api/documents/","/#/documents/")
+        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
 
 class CsafMatchListForDeviceTable(NetBoxTable):
     """

@@ -18,7 +18,16 @@ from d3c.models import Software
 class CsafDocumentView(generic.ObjectView):
     """ This view handles the request for displaying a CsafDocument. """
     queryset = models.CsafDocument.objects.all()
+    table = tables.CsafDocumentTable
 
+    def get(self, request, **kwargs):
+        instance = self.get_object(**kwargs)
+        instance.link = instance.docurl.replace("/api/documents/","/#/documents/")
+        return render(request, self.get_template_name(), {
+            'object': instance,
+            'tab': self.tab,
+            **self.get_extra_context(request, instance),
+        })
 
 @register_model_view(models.CsafDocument, name='list', detail=False)
 class CsafDocumentListView(generic.ObjectListView):
