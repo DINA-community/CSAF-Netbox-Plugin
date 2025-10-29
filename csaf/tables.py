@@ -46,8 +46,8 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
-        default_columns = ('id', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
@@ -64,8 +64,8 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
     )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
-        default_columns = ('id', 'device', 'software', 'score', 'time', 'status', 'description')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'software', 'score', 'time', 'status', 'description', 'product_name_id')
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
     """
@@ -82,8 +82,8 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
-        default_columns = ('id', 'device', 'csaf_document', 'score', 'time', 'status', 'description')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
 
 
 
@@ -102,8 +102,8 @@ class CsafMatchTable(NetBoxTable):
     )
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
-        default_columns = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
 
 
 class DevicesWithMatchTable(DeviceTable):

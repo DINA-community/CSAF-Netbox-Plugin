@@ -80,6 +80,11 @@ class CsafMatch(NetBoxModel):
         on_delete=models.CASCADE,
         related_name='csaf_matches',
     )
+    product_name_id = models.CharField(
+        blank=False,
+        null=False,
+        default='unknown'
+    )
     score = models.FloatField(default=0.0)
     time = models.DateTimeField(default=timezone.now)
     status = models.CharField(
@@ -96,6 +101,12 @@ class CsafMatch(NetBoxModel):
 
     class Meta:
         verbose_name_plural = 'CsafMatches'
+        constraints = [
+            models.UniqueConstraint(
+                fields=["device", "software", "csaf_document", "product_name_id"],
+                name="csafmatch_unique",
+                nulls_distinct=False)
+        ]
 
     @property
     def docs_url(self):

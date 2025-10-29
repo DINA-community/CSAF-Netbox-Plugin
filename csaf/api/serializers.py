@@ -19,5 +19,5 @@ class CsafMatchSerializer(NetBoxModelSerializer):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
 
