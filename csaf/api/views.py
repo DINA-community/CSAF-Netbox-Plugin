@@ -144,20 +144,23 @@ def getToken() -> str:
     password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_password'), password)
 
     token_url = f"{keycloakUrl}/realms/isduba/protocol/openid-connect/token"
-    response = requests.post(
-        token_url,
-        data={
-            "grant_type": "password",
-            "client_id": "auth",
-            "username": username,
-            "password": password,
-        },
-        verify=verifySsl,
-    )
-    if (response.status_code < 200 or response.status_code >= 300):
-        print(f"Failed to login: {response.content}")
-    return response.json().get("access_token")
-
+    try:
+        response = requests.post(
+            token_url,
+            data={
+                "grant_type": "password",
+                "client_id": "auth",
+                "username": username,
+                "password": password,
+            },
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            print(f"Failed to login: {response.content}")
+        return response.json().get("access_token")
+    except requests.exceptions.RequestException as ex:
+        print("Failed to login to ISDuBA")
+        print(ex)
 
 @system_job(interval=JobIntervalChoices.INTERVAL_HOURLY)
 class CsafDocSyncJob(JobRunner):
