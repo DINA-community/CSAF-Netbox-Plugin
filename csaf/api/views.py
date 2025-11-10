@@ -124,16 +124,24 @@ def getFromJson(document, path, dflt):
     try:
         for p in path:
             current = current.get(p)
-        return current
+
+        if current is not None:
+            return current
+
+        return dflt
     except Exception:
         return dflt
 
 def getToken() -> str:
     """Retrieve an access token via Keycloak."""
-    keycloakUrl = settings.PLUGINS_CONFIG['csaf']['isduba_keycloak_url']
-    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_keycloak_verify_ssl'), True)
-    username = settings.PLUGINS_CONFIG['csaf']['isduba_username']
-    password = settings.PLUGINS_CONFIG['csaf']['isduba_password']
+    keycloakUrl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba','keycloak_url'), None)
+    keycloakUrl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_keycloak_url'), keycloakUrl)
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba','keycloak_verify_ssl'), True)
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_keycloak_verify_ssl'), verifySsl)
+    username = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba','username'), None)
+    username = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_username'), username)
+    password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba','password'), None)
+    password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_password'), password)
 
     token_url = f"{keycloakUrl}/realms/isduba/protocol/openid-connect/token"
     response = requests.post(
@@ -146,6 +154,8 @@ def getToken() -> str:
         },
         verify=verifySsl,
     )
+    if (response.status_code < 200 or response.status_code >= 300):
+        print(f"Failed to login: {response.content}")
     return response.json().get("access_token")
 
 
