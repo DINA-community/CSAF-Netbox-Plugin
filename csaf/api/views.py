@@ -93,11 +93,11 @@ def fetchLoadingDocuments():
         headers = {
             'authorization': 'Bearer ' + token
         }
-        result = requests.get(
-            url=docurl,
-            headers=headers
-        )
         try:
+            result = requests.get(
+                url=docurl,
+                headers=headers
+            )
             jsonDoc = result.json()
             code = getFromJson(jsonDoc, ('code',), 200)
             if code == 404:
@@ -108,6 +108,15 @@ def fetchLoadingDocuments():
                 doc.version = getFromJson(jsonDoc, ('document','tracking', 'version'), None)
                 doc.publisher = getFromJson(jsonDoc, ('document','publisher', 'name'), None)
             print(f"Loaded: {doc.title}")
+            doc.save()
+        except requests.exceptions.RequestException as ex:
+            print("Failed to fetch document")
+            print(ex)
+            doc.title = TITLE_FAILED
+            if not doc.version or int(doc.version) != doc.version:
+                doc.version = 1
+            else:
+                doc.version = int(doc.version) + 1
             doc.save()
         except requests.exceptions.JSONDecodeError as e:
             print(e)
