@@ -1,4 +1,8 @@
+from datetime import datetime
 import logging
+from django.conf import settings
+import requests
+from csaf.api.views import getFromJson
 from dcim.models import Device
 from django.contrib import messages
 from django.db import transaction
@@ -12,6 +16,141 @@ from utilities.tables import get_table_configs
 from utilities.views import ViewTab, register_model_view, GetReturnURLMixin
 from . import forms, models, tables, filtersets
 from d3c.models import Software
+
+
+class Synchronisers(View):
+    """
+    Display the status of configured synchronisers.
+    """
+    def get(self, request):
+        rawData = "data!"
+        systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
+        try:
+            startStr = request.GET.get('start', -1)
+            startIdx = int(startStr)
+            rawData += f' Starting {startIdx} '
+            if startIdx >= 0 and startIdx < len(systems):
+                system = systems[startIdx]
+                token = getSyncToken(system)
+                startSystem(system, token)
+                return redirect(request.path)
+        except ValueError:
+            print(f"Not an int: {startStr}")
+            
+
+        data = []
+        idx = 0;
+        for system in systems:
+            name = getFromJson(system, ('name',), 'Unnamed')
+            token = getSyncToken(system)
+            status = getStatus(system, token)
+            rawData = rawData + ' \n ' + f"{status}";
+            lastRunStr = status.get('last_matching')
+            lastRunStr = status.get('last_synchronization', lastRunStr)
+            runState = status.get('state', 'Unknown')
+            startedStr = status.get('start', None)
+            if startedStr is None:
+                started = '-'
+            else:
+                started = datetime.fromtimestamp(startedStr)
+            if lastRunStr is None:
+                lastSync = 'Never or currently running'
+            else:
+                lastSync = datetime.fromtimestamp(lastRunStr)
+            systemData = {
+                'name': name,
+                'lastSync': lastSync,
+                'state': runState,
+                'started': started,
+                'index': idx,
+            }
+            data.append(systemData)
+            idx += 1
+
+        return render(request, 'csaf/synchronisers.html', {
+            'rawData': rawData,
+            'data': data
+        })
+
+
+def startSystem(system, token):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    type = getFromJson(system, ('type',), 'normal')
+    if type == 'normal':
+        startUrl = f"{baseUrl}/start"
+    else:
+        startUrl = f"{baseUrl}/task/start"
+    try:
+        response = requests.post(
+            startUrl,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            print(f"Failed to start {name}: {response.text}")
+    except requests.exceptions.RequestException as ex:
+        print(f"Failed to start {name}")
+        print(ex)
+
+
+
+def getStatus(system, token):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    type = getFromJson(system, ('type',), 'normal')
+    if type == 'normal':
+        status_url = f"{baseUrl}/status"
+    else:
+        status_url = f"{baseUrl}/task/status"
+    try:
+        response = requests.get(
+            status_url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            print(f"Failed to fetch status of {name}: {response.text}")
+        return response.json()
+    except requests.exceptions.RequestException as ex:
+        print(f"Failed to fetch status of {name}")
+        print(ex)
+
+
+def getSyncToken(subsystem) -> str:
+    """Retrieve an access token via Keycloak."""
+
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    username = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','username'), None)
+    password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','password'), None)
+
+    baseUrl = getFromJson(subsystem, ('url',), None)
+    name = getFromJson(subsystem, ('name',), 'Unnamed')
+    verifySsl = getFromJson(subsystem, ('verify_ssl'), verifySsl)
+    username = getFromJson(subsystem, ('username',), username)
+    password = getFromJson(subsystem, ('password',), password)
+
+    baseUrl.removesuffix('/')
+    token_url = f"{baseUrl}/token"
+    try:
+        response = requests.post(
+            token_url,
+            data={
+                'username': username,
+                'password': password,
+            },
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            print(f"Failed to login to {name}: {response.text}")
+        return response.json().get('access_token')
+    except requests.exceptions.RequestException as ex:
+        print(f"Failed to login to {name}")
+        print(ex)
 
 
 @register_model_view(models.CsafDocument)

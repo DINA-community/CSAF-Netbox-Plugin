@@ -133,4 +133,9 @@ class DevicesWithMatchTable(DeviceTable):
             'new_count', 'confirmed_count', 'resolved_count', 'total_count')
         default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
 
-
+class SynchroniserTable(NetBoxTable):
+    class Meta(NetBoxTable.Meta):
+        fields = ('name', 'last_run', 'actions')
+        fields = fields
+    
+    
