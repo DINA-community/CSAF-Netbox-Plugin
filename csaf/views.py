@@ -31,19 +31,42 @@ class Synchronisers(View):
             rawData += f' Starting {startIdx} '
             if startIdx >= 0 and startIdx < len(systems):
                 system = systems[startIdx]
-                token = getSyncToken(system)
-                startSystem(system, token)
+                token = getSyncToken(request, system)
+                if token is not None:
+                    startSystem(request, system, token)
                 return redirect(request.path)
         except ValueError:
-            print(f"Not an int: {startStr}")
+            messages.error(request, f"Not an int: {startStr}")
             
 
         data = []
         idx = 0;
         for system in systems:
             name = getFromJson(system, ('name',), 'Unnamed')
-            token = getSyncToken(system)
-            status = getStatus(system, token)
+            token = getSyncToken(request, system)
+            if token is None:
+                systemData = {
+                    'name': name,
+                    'lastSync': '-',
+                    'state': 'Login Failed',
+                    'started': '-',
+                    'index': idx,
+                }
+                data.append(systemData)
+                idx += 1
+                continue
+            status = getStatus(request, system, token)
+            if status is None:
+                systemData = {
+                    'name': name,
+                    'lastSync': '-',
+                    'state': 'Offline',
+                    'started': '-',
+                    'index': idx,
+                }
+                data.append(systemData)
+                idx += 1
+                continue
             rawData = rawData + ' \n ' + f"{status}";
             lastRunStr = status.get('last_matching')
             lastRunStr = status.get('last_synchronization', lastRunStr)
@@ -73,7 +96,7 @@ class Synchronisers(View):
         })
 
 
-def startSystem(system, token):
+def startSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
@@ -90,14 +113,15 @@ def startSystem(system, token):
             verify=verifySsl,
         )
         if (response.status_code < 200 or response.status_code >= 300):
-            print(f"Failed to start {name}: {response.text}")
+            messages.error(request, f"Failed to start {name}: {response.text}")
+        else:
+            messages.success(request, f"Started {name}")
     except requests.exceptions.RequestException as ex:
-        print(f"Failed to start {name}")
-        print(ex)
+        messages.error(request, f"Failed to start {name}: {ex}")
 
 
 
-def getStatus(system, token):
+def getStatus(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
@@ -114,14 +138,13 @@ def getStatus(system, token):
             verify=verifySsl,
         )
         if (response.status_code < 200 or response.status_code >= 300):
-            print(f"Failed to fetch status of {name}: {response.text}")
+            messages.error(request, f"Failed to fetch status of {name}: {response.text}")
         return response.json()
     except requests.exceptions.RequestException as ex:
-        print(f"Failed to fetch status of {name}")
-        print(ex)
+        messages.error(request, f"Failed to fetch status of {name}: {ex}")
 
 
-def getSyncToken(subsystem) -> str:
+def getSyncToken(request, subsystem) -> str:
     """Retrieve an access token via Keycloak."""
 
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
@@ -146,11 +169,10 @@ def getSyncToken(subsystem) -> str:
             verify=verifySsl,
         )
         if (response.status_code < 200 or response.status_code >= 300):
-            print(f"Failed to login to {name}: {response.text}")
+            messages.error(request, f"Failed to login to {name}: {response.text}")
         return response.json().get('access_token')
     except requests.exceptions.RequestException as ex:
-        print(f"Failed to login to {name}")
-        print(ex)
+        messages.error(request, f"Failed to login to {name}: {ex}")
 
 
 @register_model_view(models.CsafDocument)
