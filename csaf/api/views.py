@@ -83,6 +83,14 @@ def createDocumentForData(data):
     return entity.id
 
 
+def truncate(length, data):
+    if data is None:
+        return data
+    if len(data) > length:
+        print(f"truncated to {length}: {data}")
+        return data[0:length]
+    return data
+
 def fetchLoadingDocuments():
     query = models.CsafDocument.objects.filter(title = TITLE_LOADING)
     token = False
@@ -103,10 +111,10 @@ def fetchLoadingDocuments():
             if code == 404:
                 doc.title = TITLE_NOT_FOUND
             else:
-                doc.lang = getFromJson(jsonDoc, ('document','lang'), None)
-                doc.title = getFromJson(jsonDoc, ('document','title'), 'No Title')
-                doc.version = getFromJson(jsonDoc, ('document','tracking', 'version'), None)
-                doc.publisher = getFromJson(jsonDoc, ('document','publisher', 'name'), None)
+                doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
+                doc.title = truncate(1000, getFromJson(jsonDoc, ('document','title'), 'No Title'))
+                doc.version = truncate(50, getFromJson(jsonDoc, ('document','tracking', 'version'), None))
+                doc.publisher = truncate(100, getFromJson(jsonDoc, ('document','publisher', 'name'), None))
             print(f"Loaded: {doc.title}")
             doc.save()
         except requests.exceptions.RequestException as ex:
@@ -118,7 +126,7 @@ def fetchLoadingDocuments():
             else:
                 doc.version = int(doc.version) + 1
             doc.save()
-        except requests.exceptions.JSONDecodeError as e:
+        except Exception as e:
             print(e)
             doc.title = TITLE_FAILED
             if not doc.version or int(doc.version) != doc.version:

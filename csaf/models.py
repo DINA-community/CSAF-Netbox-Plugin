@@ -10,7 +10,7 @@ class CsafDocument(NetBoxModel):
     Only the main fields are represented here.
     """
     title = models.CharField(
-        max_length=100,
+        max_length=1000,
         blank=False,
         null=False
     )
