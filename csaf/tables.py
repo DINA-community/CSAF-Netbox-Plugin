@@ -44,10 +44,18 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    link = tables.Column(
+        accessor='csaf_document.docurl',
+        verbose_name='Link')
+
+    def render_link(self, value):
+        external = value.replace("/api/documents/","/#/documents/")
+        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
@@ -80,10 +88,18 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    link = tables.Column(
+        accessor='csaf_document.docurl',
+        verbose_name='Link')
+
+    def render_link(self, value):
+        external = value.replace("/api/documents/","/#/documents/")
+        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
 
 
 
@@ -100,10 +116,18 @@ class CsafMatchTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    link = tables.Column(
+        accessor='csaf_document.docurl',
+        verbose_name='Link')
+
+    def render_link(self, value):
+        external = value.replace("/api/documents/","/#/documents/")
+        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
 
 
 class DevicesWithMatchTable(DeviceTable):

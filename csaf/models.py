@@ -92,7 +92,7 @@ class CsafMatch(NetBoxModel):
         choices=Status,
         default=Status.NEW,
     )
-    description = models.CharField(
+    description = models.TextField(
         blank=True,
         null=True
     )
