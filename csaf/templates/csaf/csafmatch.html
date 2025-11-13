@@ -48,6 +48,10 @@
               <th scope="row">Status</th>
               <td>{{ object.get_status_display }}</td>
             </tr>
+            <tr>
+              <th scope="row">Description</th>
+              <td>{{ object.description }}</td>
+            </tr>
           </table>
       </div>
       {% include 'inc/panels/tags.html' %}
