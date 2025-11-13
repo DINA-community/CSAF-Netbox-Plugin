@@ -101,11 +101,7 @@ def startSystem(request, system, token):
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
-    type = getFromJson(system, ('type',), 'normal')
-    if type == 'normal':
-        startUrl = f"{baseUrl}/start"
-    else:
-        startUrl = f"{baseUrl}/task/start"
+    startUrl = f"{baseUrl}/task/start"
     try:
         response = requests.post(
             startUrl,
@@ -127,10 +123,7 @@ def getStatus(request, system, token):
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
     type = getFromJson(system, ('type',), 'normal')
-    if type == 'normal':
-        status_url = f"{baseUrl}/status"
-    else:
-        status_url = f"{baseUrl}/task/status"
+    status_url = f"{baseUrl}/task/status"
     try:
         response = requests.get(
             status_url,
