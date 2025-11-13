@@ -102,6 +102,7 @@ def fetchLoadingDocuments():
             'authorization': 'Bearer ' + token
         }
         try:
+            print(f"Requesting: {docurl}")
             result = requests.get(
                 url=docurl,
                 headers=headers
@@ -162,6 +163,7 @@ def getToken() -> str:
 
     token_url = f"{keycloakUrl}/realms/isduba/protocol/openid-connect/token"
     try:
+        print(f"Requesting: {token_url}")
         response = requests.post(
             token_url,
             data={
@@ -198,15 +200,47 @@ class CsafMatchViewSet(NetBoxModelViewSet):
 
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, list):
+            result = []
             for data in request.data:
                 if isinstance(data.get('csaf_document'), str):
                     data['csaf_document'] = createDocumentForData({'docurl':data['csaf_document']})
+                id = createMatchForData(data)
+                result.append({"id": id})
         else:
-            if isinstance(request.data.get('csaf_document'), str):
-                request.data['csaf_document'] = createDocumentForData({'docurl':request.data['csaf_document']})
+            data = request.data
+            if isinstance(data.get('csaf_document'), str):
+                data['csaf_document'] = createDocumentForData({'docurl':data['csaf_document']})
+            id = createMatchForData(data)
+            result = {"id": id}
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(result, status = status.HTTP_201_CREATED)
+
+def createMatchForData(data):
+    csaf_document = data.get('csaf_document')
+    device = data.get('device')
+    software = data.get('software')
+    product_name_id = data.get('product_name_id')
+    query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
+    try:
+        entity = query.get()
+        score = data.get('score', 0)
+        description = data.get('description', '')
+        if entity.score < score:
+            if entity.description is None:
+                entity.description = ''
+            entity.description += f'\nReopened, Score increased from {entity.score} to {score}\n'
+            entity.description += description
+            entity.score = score
+            entity.save()
+    except models.CsafMatch.DoesNotExist:
+        serializer = CsafMatchSerializer(data=data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return serializer.data.get("id")
+        except (ValidationError, IntegrityError) as ex:
+            # Race condition, someone else just created the match
+            query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
+            entity = query.get()
+
+    return entity.id
