@@ -204,14 +204,13 @@ class CsafMatchViewSet(NetBoxModelViewSet):
             for data in request.data:
                 if isinstance(data.get('csaf_document'), str):
                     data['csaf_document'] = createDocumentForData({'docurl':data['csaf_document']})
-                id = createMatchForData(data)
-                result.append({"id": id})
+                entity = createMatchForData(data)
+                result.append(entity)
         else:
             data = request.data
             if isinstance(data.get('csaf_document'), str):
                 data['csaf_document'] = createDocumentForData({'docurl':data['csaf_document']})
-            id = createMatchForData(data)
-            result = {"id": id}
+            result = createMatchForData(data)
 
         return Response(result, status = status.HTTP_201_CREATED)
 
@@ -237,10 +236,10 @@ def createMatchForData(data):
         try:
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            return serializer.data.get("id")
+            return serializer.data
         except (ValidationError, IntegrityError) as ex:
             # Race condition, someone else just created the match
             query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
             entity = query.get()
 
-    return entity.id
+    return CsafMatchSerializer(entity).data
