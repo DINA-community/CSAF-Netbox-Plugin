@@ -35,7 +35,10 @@
               <td>{{ row.lastSync }}</td>
               <td>{{ row.state }}</td>
               <td>{{ row.started }}</td>
-              <td><a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a></td>
+              <td>
+                {% if row.state == "stopped" %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
+                {% if row.state == "running" %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
+              </td>
             </tr>
           {% endfor %}
         </table>

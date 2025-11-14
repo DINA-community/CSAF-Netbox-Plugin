@@ -37,6 +37,19 @@ class Synchronisers(View):
                 return redirect(request.path)
         except ValueError:
             messages.error(request, f"Not an int: {startStr}")
+
+        try:
+            stopStr = request.GET.get('stop', -1)
+            stopIdx = int(stopStr)
+            rawData += f' stopping {stopIdx} '
+            if stopIdx >= 0 and stopIdx < len(systems):
+                system = systems[stopIdx]
+                token = getSyncToken(request, system)
+                if token is not None:
+                    stopSystem(request, system, token)
+                return redirect(request.path)
+        except ValueError:
+            messages.error(request, f"Not an int: {stopStr}")
             
 
         data = []
@@ -114,6 +127,26 @@ def startSystem(request, system, token):
             messages.success(request, f"Started {name}")
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to start {name}: {ex}")
+
+
+def stopSystem(request, system, token):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    startUrl = f"{baseUrl}/task/stop"
+    try:
+        response = requests.post(
+            startUrl,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to stop {name}: {response.text}")
+        else:
+            messages.success(request, f"Stopped {name}")
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to stop {name}: {ex}")
 
 
 
