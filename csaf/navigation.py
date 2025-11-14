@@ -26,6 +26,12 @@ devicesWithMatches = PluginMenuItem(
     permissions=('csaf.view_csafdocument','dcim.view_device'),
     buttons=()
 )
+softwareWithMatches = PluginMenuItem(
+    link='plugins:d3c:software_withmatches',
+    link_text='Software with Matches',
+    permissions=('csaf.view_csafdocument',),
+    buttons=()
+)
 synchronisers = PluginMenuItem(
     link='plugins:csaf:synchronisers',
     link_text='Synchronisers',
@@ -34,14 +40,14 @@ synchronisers = PluginMenuItem(
 )
 
 _menu_items_models = (
-    csafDocumentItem, csafMatchItem, devicesWithMatches, synchronisers
+    csafDocumentItem, csafMatchItem, devicesWithMatches, softwareWithMatches, synchronisers
 )
 
 
 menu = PluginMenu(
     label="CSAF",
     groups=(
-        ("Models", (csafDocumentItem, csafMatchItem, devicesWithMatches, synchronisers,)),
+        ("Models", (csafDocumentItem, csafMatchItem, devicesWithMatches, softwareWithMatches, synchronisers,)),
     ),
     icon_class="mdi mdi-gamma",
 )

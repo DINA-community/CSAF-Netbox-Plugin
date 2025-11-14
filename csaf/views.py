@@ -197,6 +197,11 @@ class CsafDocumentListView(generic.ObjectListView):
             ).values('c')), 0),
     )
     table = tables.CsafDocumentTable
+    actions = {
+        'add': {'add'},
+        'bulk_edit': {'change'},
+        'bulk_delete': {'delete'},
+    }
 
 
 @register_model_view(models.CsafDocument, name='add', detail=False)
@@ -213,6 +218,14 @@ class CsafDocumentDeleteView(generic.ObjectDeleteView):
     queryset = models.CsafDocument.objects.all()
 
 
+@register_model_view(models.CsafDocument, 'bulk_delete', path='delete', detail=False)
+class CsafDocumentBulkDeleteView(generic.BulkDeleteView):
+    """ This view handles the buld delete requests for the CsafDocument model. """
+    queryset = models.CsafDocument.objects.all()
+    filtersets = filtersets.CsafDocumentFilterSet
+    table = tables.CsafDocumentTable
+
+
 @register_model_view(models.CsafMatch)
 class CsafMatchView(generic.ObjectView):
     """ This view handles the request for displaying a CsafMatch. """
@@ -224,6 +237,11 @@ class CsafMatchListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafMatches as a table. """
     queryset = models.CsafMatch.objects.all()
     table = tables.CsafMatchTable
+    actions = {
+        'add': {'add'},
+        'bulk_edit': {'change'},
+        'bulk_delete': {'delete'},
+    }
 
 
 @register_model_view(models.CsafMatch, name='add', detail=False)
@@ -238,6 +256,14 @@ class CsafMatchEditView(generic.ObjectEditView):
 class CsafMatchDeleteView(generic.ObjectDeleteView):
     """ This view handles the delete requests for the CsafMatch model. """
     queryset = models.CsafMatch.objects.all()
+
+
+@register_model_view(models.CsafMatch, 'bulk_delete', path='delete', detail=False)
+class CsafMatchBulkDeleteView(generic.BulkDeleteView):
+    """ This view handles the buld delete requests for the CsafMatch model. """
+    queryset = models.CsafMatch.objects.all()
+    filtersets = filtersets.CsafMatchFilterSet
+    table = tables.CsafMatchTable
 
 
 class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
@@ -437,4 +463,42 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.DevicesWithMatchTable
+
+
+@register_model_view(Software, name='withmatches', path='withmatches', detail=False)
+class SoftwareListWithCsafMatches(generic.ObjectListView):
+    """ This view handles the request for displaying Software with CsafMatches as a table. """
+    queryset = Software.objects.annotate(
+            new_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'software': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.NEW)
+                    .values('software')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            confirmed_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'software': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.CONFIRMED)
+                    .values('software')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            resolved_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'software': OuterRef('pk')})
+                    .filter(status__in=[models.CsafMatch.Status.FALSE_POSITIVE,models.CsafMatch.Status.RESOLVED])
+                    .values('software')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            total_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'software': OuterRef('pk')})
+                    .values('software')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).filter(total_count__gt=0)
+    table = tables.SoftwareWithMatchTable
 

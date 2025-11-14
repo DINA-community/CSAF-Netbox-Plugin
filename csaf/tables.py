@@ -8,6 +8,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable
 from .models import (CsafDocument, CsafMatch)
+from d3c.models import Software
+from d3c.tables import SoftwareTable
 
 
 class CsafDocumentTable(NetBoxTable):
@@ -161,5 +163,29 @@ class SynchroniserTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         fields = ('name', 'last_run', 'actions')
         fields = fields
-    
-    
+
+
+class SoftwareWithMatchTable(SoftwareTable):
+    """
+        Table of Software with a Match count.
+    """
+    new_count = tables.Column(
+        verbose_name=_('New Matches')
+    )
+    confirmed_count = tables.Column(
+        verbose_name=_('Confirmed Matches')
+    )
+    resolved_count = tables.Column(
+        verbose_name=_('Resolved Matches')
+    )
+    total_count = tables.Column(
+        verbose_name=_('Total Matches')
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = Software
+        fields = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'cpe',  'purl',
+                  'sbom_url_count', 'hashes_count', 'xgenericuri_count', 'parent_rel_count', 'target_rel_count',
+                  'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+
