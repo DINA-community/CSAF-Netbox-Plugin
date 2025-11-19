@@ -33,6 +33,7 @@ class CsafDocumentTable(NetBoxTable):
         external = value.replace("/api/documents/","/#/documents/")
         return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
 
+
 class CsafMatchListForDeviceTable(NetBoxTable):
     """
         Table for the CsafMatches for a single device
@@ -49,6 +50,9 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
+    score = tables.TemplateColumn(
+        template_code='{{ value|floatformat:0 }}'
+    )
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -72,10 +76,15 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    score = tables.TemplateColumn(
+        template_code='{{ value|floatformat:0 }}'
+    )
+
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
         default_columns = ('id', 'device', 'software', 'score', 'time', 'status', 'description', 'product_name_id')
+
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
     """
@@ -93,6 +102,9 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
+    score = tables.TemplateColumn(
+        template_code='{{ value|floatformat:0 }}'
+    )
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -102,7 +114,6 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
         default_columns = ('id', 'device', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-
 
 
 class CsafMatchTable(NetBoxTable):
@@ -121,6 +132,9 @@ class CsafMatchTable(NetBoxTable):
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
+    score = tables.TemplateColumn(
+        template_code='{{ value|floatformat:0 }}'
+    )
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
