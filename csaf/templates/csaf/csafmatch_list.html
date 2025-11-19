@@ -18,7 +18,8 @@
 
     <div class="row mb-3">
       <div class="col-auto table-controls noprint">
-        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=N">New</a>&nbsp;
+        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=N">New</a>
+        <a class="btn {% if status.O %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=O">Reopened</a>
         <a class="btn {% if status.C %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=C">Confirmed</a>
         <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=R">Resolved</a>
         <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=F">False Positive</a>
@@ -46,6 +47,11 @@
                   <li>
                     <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="N">
                     {% trans "New" %}
+                    </button>
+                  </li>
+                  <li>
+                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="O">
+                      {% trans "Reopened" %}
                     </button>
                   </li>
                   <li>

@@ -318,7 +318,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             return self.handle_no_permission()
 
         targetStatus = request.POST.get('targetStatus', "")
-        if targetStatus not in ['N', 'C', 'R', 'F']:
+        if targetStatus not in ['N', 'O', 'C', 'R', 'F']:
             messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
             return self.get(request, args, kwargs)
 
@@ -389,7 +389,10 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             device=obj,
-            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            status__in=[
+                models.CsafMatch.Status.NEW,
+                models.CsafMatch.Status.CONFIRMED,
+                models.CsafMatch.Status.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -410,7 +413,10 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             csaf_document=obj,
-            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            status__in=[
+                models.CsafMatch.Status.NEW,
+                models.CsafMatch.Status.CONFIRMED,
+                models.CsafMatch.Status.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -432,7 +438,10 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             software=obj,
-            status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED])
+            status__in=[
+                models.CsafMatch.Status.NEW,
+                models.CsafMatch.Status.CONFIRMED,
+                models.CsafMatch.Status.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -442,17 +451,18 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
 
 
 def handleStatus(request):
-    statusString = request.GET.get('statusString', '1100')
+    statusString = request.GET.get('statusString', '11001')
     status = {
         'N': int(statusString[0]),
         'C': int(statusString[1]),
         'R': int(statusString[2]),
         'F': int(statusString[3]),
+        'O': int(statusString[4]),
     }
     toggle = request.GET.get('toggle', "")
-    if toggle in ['N', 'C', 'R', 'F']:
+    if toggle in ['N', 'C', 'R', 'F', 'O']:
         status[toggle] = 1 - int(status[toggle])
-    statusString = "" + str(status['N']) + str(status['C']) + str(status['R']) + str(status['F'])
+    statusString = "" + str(status['N']) + str(status['C']) + str(status['R']) + str(status['F']) + str(status['O'])
     statusSearch={0}
     for s,v in status.items():
         if v:
@@ -480,10 +490,20 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
                     .annotate(c=Count('*'))
                     .values('c'))
         ).annotate(
+            reopened_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'device': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .values('device')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
             resolved_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'device': OuterRef('pk')})
-                    .filter(status__in=[models.CsafMatch.Status.FALSE_POSITIVE,models.CsafMatch.Status.RESOLVED])
+                    .filter(status__in=[
+                        models.CsafMatch.Status.FALSE_POSITIVE,
+                        models.CsafMatch.Status.RESOLVED])
                     .values('device')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -518,10 +538,20 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
                     .annotate(c=Count('*'))
                     .values('c'))
         ).annotate(
+            reopened_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'software': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .values('software')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
             resolved_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'software': OuterRef('pk')})
-                    .filter(status__in=[models.CsafMatch.Status.FALSE_POSITIVE,models.CsafMatch.Status.RESOLVED])
+                    .filter(status__in=[
+                        models.CsafMatch.Status.FALSE_POSITIVE,
+                        models.CsafMatch.Status.RESOLVED])
                     .values('software')
                     .annotate(c=Count('*'))
                     .values('c'))

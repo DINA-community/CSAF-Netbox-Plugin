@@ -227,9 +227,13 @@ def createMatchForData(data):
         if entity.score < score:
             if entity.description is None:
                 entity.description = ''
-            entity.description += f'\nReopened, Score increased from {entity.score} to {score}\n'
+            entity.description += '\n'
             entity.description += description
+            entity.description += f'\nScore increased from {entity.score} to {score}'
             entity.score = score
+            if entity.status == models.CsafMatch.Status.FALSE_POSITIVE:
+                entity.status = models.CsafMatch.Status.REOPENED
+                entity.description += f'\nReopened'
             entity.save()
     except models.CsafMatch.DoesNotExist:
         serializer = CsafMatchSerializer(data=data)

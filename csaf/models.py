@@ -57,6 +57,7 @@ class CsafMatch(NetBoxModel):
     class Status(models.TextChoices):
         NEW = "N", "New"
         CONFIRMED = "C", "Confirmed"
+        REOPENED = "O", "Reopened"
         RESOLVED = "R", "Resolved"
         FALSE_POSITIVE = "F", "False Positive"
 
