@@ -50,7 +50,19 @@ class Synchronisers(View):
                 return redirect(request.path)
         except ValueError:
             messages.error(request, f"Not an int: {stopStr}")
-            
+
+        trigger = request.GET.get('trigger', None)
+        if (trigger is not None):
+            print("Triggering...")
+            for system in systems:
+                isMatcher = getFromJson(system, ('isMatcher',), False)
+                if isMatcher:
+                    token = getSyncToken(request, system)
+                    if token is not None:
+                        triggerMatcher(request, system, token)
+                    else:
+                        print(f"No token: {system}")
+            return redirect(request.path)
 
         data = []
         idx = 0;
@@ -108,6 +120,94 @@ class Synchronisers(View):
             'data': data
         })
 
+def triggerMatcher(request, system, token):
+    device = request.GET.get('device', -1)
+    software = request.GET.get('software', -1)
+
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    startUrl = f"{baseUrl}/task/start"
+    try:
+        assets = []
+        csaf_documents = []
+        addUrlForDocument(csaf_documents, request.GET.get('document', None))
+        addUrlForDevice(assets, request.GET.get('device', None), system)
+        addUrlForSoftware(assets, request.GET.get('software', None), system)
+        response = requests.post(
+            startUrl,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+            params={
+                'assets': assets,
+                'csaf_documents': csaf_documents,
+            }
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to start {name}: {response.text}")
+        else:
+            messages.success(request, f"Triggered {name}")
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to trigger {name}: {ex}")
+
+
+def addUrlForSoftware(list, id, system):
+    if id is None:
+        return
+    try:
+        entityId = int(id)
+        baseUrl = getFromJson(system, ('netboxBaseUrl',), None)
+        if baseUrl is not None:
+            devUrl = f'{baseUrl}/api/plugins/d3c/software/{entityId}/'
+            list.append(devUrl)
+            return
+
+        query = Software.objects.filter(id = entityId)
+        try:
+            entity = query.get()
+            list.append(entity.get_absolute_url())
+        except Software.DoesNotExist:
+            return
+    except ValueError:
+        return
+
+
+def addUrlForDevice(list, id, system):
+    if id is None:
+        return
+    try:
+        entityId = int(id)
+        baseUrl = getFromJson(system, ('netboxBaseUrl',), None)
+        if baseUrl is not None:
+            devUrl = f'{baseUrl}/api/dcim/devices/{entityId}/'
+            list.append(devUrl)
+            return
+
+        query = Device.objects.filter(id = entityId)
+        try:
+            entity = query.get()
+            list.append(entity.get_absolute_url())
+        except Device.DoesNotExist:
+            return
+    except ValueError:
+        return
+
+
+def addUrlForDocument(list, id):
+    if id is None:
+        return
+    try:
+        docId = int(id)
+        query = models.CsafDocument.objects.filter(id = docId)
+        try:
+            entity = query.get()
+            list.append(entity.docurl)
+        except models.CsafDocument.DoesNotExist:
+            return
+    except ValueError:
+        return
+
 
 def startSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
@@ -147,7 +247,6 @@ def stopSystem(request, system, token):
             messages.success(request, f"Stopped {name}")
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to stop {name}: {ex}")
-
 
 
 def getStatus(request, system, token):

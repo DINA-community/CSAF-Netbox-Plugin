@@ -35,7 +35,8 @@ PLUGINS_CONFIG = {
         {
           'name': 'CSAF Matcher',
           'url': 'http://127.0.0.1:8998/',
-          'type': 'matcher'
+          'isMatcher': True,
+          'netboxBaseUrl': 'http://localhost:8000',
         },
       ]
     }

@@ -200,6 +200,8 @@ class CsafMatchViewSet(NetBoxModelViewSet):
 
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, list):
+            count = len(request.data)
+            print(f"Handling {count} matches")
             result = []
             for data in request.data:
                 if isinstance(data.get('csaf_document'), str):
@@ -222,6 +224,7 @@ def createMatchForData(data):
     query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
     try:
         entity = query.get()
+        print(f"Duplicate: {device}, {software}, {csaf_document}, {product_name_id}")
         score = data.get('score', 0)
         description = data.get('description', '')
         if entity.score < score:
@@ -236,12 +239,14 @@ def createMatchForData(data):
                 entity.description += f'\nReopened'
             entity.save()
     except models.CsafMatch.DoesNotExist:
+        print(f"New: {device}, {software}, {csaf_document}, {product_name_id}")
         serializer = CsafMatchSerializer(data=data)
         try:
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return serializer.data.get('id')
         except (ValidationError, IntegrityError) as ex:
+            print(f"Race: {device}, {software}, {csaf_document}, {product_name_id}")
             # Race condition, someone else just created the match
             query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
             entity = query.get()
