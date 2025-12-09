@@ -23,12 +23,10 @@ class Synchronisers(View):
     Display the status of configured synchronisers.
     """
     def get(self, request):
-        rawData = "data!"
         systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
         try:
             startStr = request.GET.get('start', -1)
             startIdx = int(startStr)
-            rawData += f' Starting {startIdx} '
             if startIdx >= 0 and startIdx < len(systems):
                 system = systems[startIdx]
                 token = getSyncToken(request, system)
@@ -41,7 +39,6 @@ class Synchronisers(View):
         try:
             stopStr = request.GET.get('stop', -1)
             stopIdx = int(stopStr)
-            rawData += f' stopping {stopIdx} '
             if stopIdx >= 0 and stopIdx < len(systems):
                 system = systems[stopIdx]
                 token = getSyncToken(request, system)
@@ -116,7 +113,6 @@ class Synchronisers(View):
             idx += 1
 
         return render(request, 'csaf/synchronisers.html', {
-            'rawData': rawData,
             'data': data
         })
 
