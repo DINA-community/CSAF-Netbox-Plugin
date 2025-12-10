@@ -16,12 +16,12 @@ PLUGINS_CONFIG = {
     'isduba': {
       'keycloak_url': '<Base URL of KeyCloak used by IsDuBa>',
       'keycloak_verify_ssl': False,
-      'username': '<user name>',
-      'password': '<user password>'
+      'username': '<user name for KeyCloak>',
+      'password': '<user password for KeyCloak>'
     },
     'synchronisers': {
-      'username': 'admin',
-      'password': 'admin',
+      'username': '<user name for synchronisers/matchers>',
+      'password': '<password for synchronisers/matchers>',
       'verify_ssl': False,
       'urls': [
         {
@@ -43,3 +43,6 @@ PLUGINS_CONFIG = {
   }
 }
 ```
+
+The `username` and `password` for Synchronisers and Matcher can be overridden on a per-matcher basis.
+The `netboxBaseUrl` of the CSAF Matcher must be set to the url of Netbox as the Matcher sees it.
