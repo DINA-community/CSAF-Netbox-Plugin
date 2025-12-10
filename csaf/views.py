@@ -89,7 +89,6 @@ class Synchronisers(View):
                 data.append(systemData)
                 idx += 1
                 continue
-            rawData = rawData + ' \n ' + f"{status}";
             lastRunStr = status.get('last_matching')
             lastRunStr = status.get('last_synchronization', lastRunStr)
             runState = status.get('state', 'Unknown')
