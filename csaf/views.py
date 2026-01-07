@@ -29,7 +29,7 @@ class Synchronisers(View):
             startIdx = int(startStr)
             if startIdx >= 0 and startIdx < len(systems):
                 system = systems[startIdx]
-                token = getSyncToken(request, system)
+                (token, msg) = getSyncToken(request, system)
                 if token is not None:
                     startSystem(request, system, token)
                 return redirect(request.path)
@@ -41,7 +41,7 @@ class Synchronisers(View):
             stopIdx = int(stopStr)
             if stopIdx >= 0 and stopIdx < len(systems):
                 system = systems[stopIdx]
-                token = getSyncToken(request, system)
+                (token, msg) = getSyncToken(request, system)
                 if token is not None:
                     stopSystem(request, system, token)
                 return redirect(request.path)
@@ -54,7 +54,7 @@ class Synchronisers(View):
             for system in systems:
                 isMatcher = getFromJson(system, ('isMatcher',), False)
                 if isMatcher:
-                    token = getSyncToken(request, system)
+                    (token, msg) = getSyncToken(request, system)
                     if token is not None:
                         triggerMatcher(request, system, token)
                     else:
@@ -65,12 +65,12 @@ class Synchronisers(View):
         idx = 0;
         for system in systems:
             name = getFromJson(system, ('name',), 'Unnamed')
-            token = getSyncToken(request, system)
+            (token, msg) = getSyncToken(request, system)
             if token is None:
                 systemData = {
                     'name': name,
                     'lastSync': '-',
-                    'state': 'Login Failed',
+                    'state': msg,
                     'started': '-',
                     'index': idx,
                 }
@@ -277,7 +277,7 @@ def getSyncToken(request, subsystem) -> str:
     username = getFromJson(subsystem, ('username',), username)
     password = getFromJson(subsystem, ('password',), password)
 
-    baseUrl.removesuffix('/')
+    baseUrl = baseUrl.removesuffix('/')
     token_url = f"{baseUrl}/token"
     try:
         response = requests.post(
@@ -290,9 +290,14 @@ def getSyncToken(request, subsystem) -> str:
         )
         if (response.status_code < 200 or response.status_code >= 300):
             messages.error(request, f"Failed to login to {name}: {response.text}")
-        return response.json().get('access_token')
+            return None,'Login Failed'
+        return response.json().get('access_token'), 'OK'
+    except requests.exceptions.ConnectionError as ex:
+        messages.error(request, f"Failed to connect to {name} at {baseUrl}: {ex.__context__.__cause__._message}")
+        return None,'Connection failed'
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to login to {name}: {ex}")
+        return None,'Unknown error'
 
 
 @register_model_view(models.CsafDocument)
