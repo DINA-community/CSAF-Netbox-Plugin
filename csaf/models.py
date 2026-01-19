@@ -40,6 +40,7 @@ class CsafDocument(NetBoxModel):
         return reverse('plugins:csaf:csafdocument', args=[self.pk])
 
     class Meta:
+        ordering = ['id']
         verbose_name_plural = 'CsafDocuments'
 
     def __str__(self):
@@ -101,6 +102,7 @@ class CsafMatch(NetBoxModel):
         return reverse('plugins:csaf:csafmatch', args=[self.pk])
 
     class Meta:
+        ordering = ['id']
         verbose_name_plural = 'CsafMatches'
         constraints = [
             models.UniqueConstraint(
