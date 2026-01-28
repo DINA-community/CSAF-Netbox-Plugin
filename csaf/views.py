@@ -320,7 +320,7 @@ class CsafDocumentView(generic.ObjectView):
             **self.get_extra_context(request, instance),
         })
 
-@register_model_view(models.CsafDocument, name='list', detail=False)
+@register_model_view(models.CsafDocument, name='list', path='', detail=False)
 class CsafDocumentListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafDocuments as a table. """
     queryset = models.CsafDocument.objects.annotate(
@@ -369,7 +369,7 @@ class CsafMatchView(generic.ObjectView):
     queryset = models.CsafMatch.objects.all()
 
 
-@register_model_view(models.CsafMatch, name='list', detail=False)
+@register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafMatches as a table. """
     queryset = models.CsafMatch.objects.all()
