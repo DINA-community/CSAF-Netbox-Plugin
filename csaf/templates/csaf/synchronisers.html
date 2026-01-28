@@ -39,4 +39,27 @@
     </div>
   </div>
 </div>
+{% if error_help %}
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <div class="card-header">
+        Possible causes and solutions for errors:
+      </div>
+      <div class="card-body">
+        <dl>
+          <dt>Failed to resolve (Errno -2)</dt>
+          <dd>The <em>url</em> for the synchroniser/matcher is not correct in the Netbox configuration file.</dd>
+
+          <dt>Failed to establish a new connection (Errno 111)</dt>
+          <dd>Netbox could not connect to the synchroniser/matcher.
+            Either because the synchroniser/matcher is not running, or because the URL is not correct.
+            When running in a container environment (such as Docker) the host <i>localhost</i> refers to
+            the pod of Netbox itself and is most likely not correct.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

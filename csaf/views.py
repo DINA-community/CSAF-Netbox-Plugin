@@ -17,12 +17,14 @@ from utilities.views import ViewTab, register_model_view, GetReturnURLMixin
 from . import forms, models, tables, filtersets
 from d3c.models import Software
 
+OK_LABEL = 'OK'
 
 class Synchronisers(View):
     """
     Display the status of configured synchronisers.
     """
     def get(self, request):
+        error_help = False
         systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
         try:
             startStr = request.GET.get('start', -1)
@@ -66,6 +68,8 @@ class Synchronisers(View):
         for system in systems:
             name = getFromJson(system, ('name',), 'Unnamed')
             (token, msg) = getSyncToken(request, system)
+            if msg != OK_LABEL:
+                error_help = True
             if token is None:
                 systemData = {
                     'name': name,
@@ -112,7 +116,8 @@ class Synchronisers(View):
             idx += 1
 
         return render(request, 'csaf/synchronisers.html', {
-            'data': data
+            'data': data,
+            'error_help': error_help,
         })
 
 def triggerMatcher(request, system, token):
@@ -291,7 +296,7 @@ def getSyncToken(request, subsystem) -> str:
         if (response.status_code < 200 or response.status_code >= 300):
             messages.error(request, f"Failed to login to {name}: {response.text}")
             return None,'Login Failed'
-        return response.json().get('access_token'), 'OK'
+        return response.json().get('access_token'), OK_LABEL
     except requests.exceptions.ConnectionError as ex:
         messages.error(request, f"Failed to connect to {name} at {baseUrl}: {ex.__context__.__cause__._message}")
         return None,'Connection failed'
