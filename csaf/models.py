@@ -36,9 +36,6 @@ class CsafDocument(NetBoxModel):
         null=True
     )
 
-    def get_absolute_url(self):
-        return reverse('plugins:csaf:csafdocument', args=[self.pk])
-
     class Meta:
         ordering = ['id']
         verbose_name_plural = 'CsafDocuments'
@@ -98,8 +95,6 @@ class CsafMatch(NetBoxModel):
         blank=True,
         null=True
     )
-    def get_absolute_url(self):
-        return reverse('plugins:csaf:csafmatch', args=[self.pk])
 
     class Meta:
         ordering = ['id']
