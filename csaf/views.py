@@ -406,6 +406,7 @@ class CsafMatchBulkDeleteView(generic.BulkDeleteView):
 
 class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     child_model = models.CsafMatch
+    filterset = filtersets.CsafMatchFilterSet
     base_template = 'generic/object_children.html'
     template_name = 'csaf/csafmatch_list.html'
     linkName = 'None'
@@ -441,12 +442,11 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
 
     def get(self, request, *args, **kwargs):
-        """
-        GET handler for rendering child objects.
-        """
         instance = self.get_object(**kwargs)
         statusString, status, statusSearch = handleStatus(request)
         childObjects = self.get_children_for(instance).filter(status__in=statusSearch)
+        if self.filterset:
+            childObjects = self.filterset(request.GET, childObjects, request=request).qs
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.child_model)
@@ -481,7 +481,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         })
 
 
-# CsafMatches view for one device
+# CsafMatches view for one Device
 @register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )
 class CsafMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
@@ -506,6 +506,7 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
         return self.child_model.objects.filter(device=parent)
 
 
+# CsafMatches view for one Document
 @register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatches', )
 class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a CsafDocument. """
@@ -531,6 +532,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
 
 
 
+# CsafMatches view for one Software
 @register_model_view(model=Software, name='matchlistforsoftware', path='csafmatches', )
 class CsafMatchListForSoftwareView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """

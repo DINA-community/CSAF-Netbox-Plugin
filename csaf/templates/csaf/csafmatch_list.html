@@ -4,17 +4,19 @@
 {% load render_table from django_tables2 %}
 
 {% block extra_controls %}
-  {% with viewname=object %}
-    <a href="{% url 'plugins:csaf:synchronisers' %}?trigger=1&{{ link_name }}={{ object.pk }}" class="btn btn-primary">
-      <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Trigger Matching Run" %}
-    </a>
-  {% endwith %}
-  {% if perms.csaf.add_csafmatch %}
+  {% if link_name %}
     {% with viewname=object %}
-      <a href="{% url 'plugins:csaf:csafmatch_add' %}?{{ link_name }}={{ object.pk }}&return_url={{ return_url }}" class="btn btn-primary">
-        <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add a Match" %}
+      <a href="{% url 'plugins:csaf:synchronisers' %}?trigger=1&{{ link_name }}={{ object.pk }}" class="btn btn-primary">
+        <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Trigger Matching Run" %}
       </a>
     {% endwith %}
+    {% if perms.csaf.add_csafmatch %}
+      {% with viewname=object %}
+        <a href="{% url 'plugins:csaf:csafmatch_add' %}?{{ link_name }}={{ object.pk }}&return_url={{ return_url }}" class="btn btn-primary">
+          <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add a Match" %}
+        </a>
+      {% endwith %}
+    {% endif %}
   {% endif %}
 {% endblock %}
 
@@ -29,6 +31,15 @@
         <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=R">Resolved</a>
         <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
+      </div>
+      <div class="col-auto table-controls noprint">
+        <div class="input-group input-group-flat me-2 quicksearch" hx-disinherit="hx-select hx-swap">
+          <input type="search" results="5" name="q" id="quicksearch" class="form-control" placeholder="{% trans "Quick search" %}"
+              hx-get="{{ request.full_path }}" hx-target="#object_list" hx-trigger="keyup changed delay:500ms, search"/>
+          <span class="input-group-text py-1">
+            <a href="#" id="quicksearch_clear" class="invisible text-secondary"><i class="mdi mdi-close-circle"></i></a>
+          </span>
+        </div>
       </div>
     </div>
 

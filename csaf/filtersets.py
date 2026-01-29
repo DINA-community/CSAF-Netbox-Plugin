@@ -34,5 +34,12 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     )
 
     def search(self, queryset, status, value):
-        return queryset.filter(status__in=value)
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(description__icontains=value) |
+            Q(csaf_document__title__icontains=value) |
+            Q(software__name__icontains=value) |
+            Q(device__name__icontains=value)
+        )
 
