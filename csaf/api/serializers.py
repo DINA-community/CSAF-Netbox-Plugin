@@ -8,9 +8,10 @@ class CsafDocumentSerializer(NetBoxModelSerializer):
     """
     REST API Model Serializer for CsafDocument.
     """
+    brief_fields = ('id', 'display', 'title', 'lang', 'publisher')
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
+        fields = ('id', 'display', 'title', 'docurl', 'version', 'lang', 'publisher')
 
 
 class CsafMatchSerializer(NetBoxModelSerializer):

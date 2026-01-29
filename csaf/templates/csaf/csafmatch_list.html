@@ -21,15 +21,15 @@
 {% endblock %}
 
 {% block content %}
-  <div class="row mb-3">
+  <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
 
     <div class="row mb-3">
       <div class="col-auto table-controls noprint">
-        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=N">New</a>
-        <a class="btn {% if status.O %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=O">Reopened</a>
-        <a class="btn {% if status.C %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=C">Confirmed</a>
-        <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=R">Resolved</a>
-        <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ request.path }}?statusString={{ statusString }}&toggle=F">False Positive</a>
+        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
+        <a class="btn {% if status.O %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
+        <a class="btn {% if status.C %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=R">Resolved</a>
+        <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
       <div class="col-auto table-controls noprint">
@@ -81,7 +81,7 @@
                     </button>
                   </li>
                   <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="X">
+                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="F">
                       {% trans "False Positive" %}
                     </button>
                   </li>
@@ -95,4 +95,12 @@
       </div>
     </form>
   </div>
+  {# Filters tab #}
+  {% if filter_form %}
+    <div class="tab-pane show" id="filters-form" role="tabpanel" aria-labelledby="filters-form-tab">
+      {% include 'inc/filter_list.html' %}
+    </div>
+  {% endif %}
+  {# /Filters tab #}
+
 {% endblock %}

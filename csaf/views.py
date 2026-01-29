@@ -335,6 +335,7 @@ class CsafDocumentListView(generic.ObjectListView):
     )
     table = tables.CsafDocumentTable
     filterset = filtersets.CsafDocumentFilterSet
+    filterset_form = forms.CsafDocumentFilterForm
     actions = {
         'add': {'add'},
         'bulk_edit': {'change'},
@@ -399,6 +400,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     model = models.CsafMatch
     queryset = models.CsafMatch.objects.all()
     filterset = filtersets.CsafMatchFilterSet
+    filterset_form = forms.CsafMatchFilterForm
     table = tables.CsafMatchTable
     base_template = 'generic/object_list.html'
     template_name = 'csaf/csafmatch_list.html'
@@ -426,6 +428,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                 'model': self.model,
             })
 
+        return_url = cleanUrl(request.get_full_path())
         return render(request, self.template_name, {
             'model': self.model,
             'base_template': self.base_template,
@@ -435,7 +438,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             'actions': actions,
             'status': status,
             'statusString': statusString,
-            'return_url': request.get_full_path(),
+            'return_url': return_url,
             'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             **self.get_extra_context(request),
         })
@@ -488,7 +491,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         targetStatus = request.POST.get('targetStatus', "")
         if targetStatus not in ['N', 'O', 'C', 'R', 'F']:
             messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
-            return self.get(request, args, kwargs)
+            return redirect(self.get_return_url(request))
 
         selected_objects = self.get_children_for(instance).filter(
             pk__in=request.POST.getlist('pk'),
@@ -525,6 +528,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                 'model': self.child_model,
             })
 
+        return_url = cleanUrl(request.get_full_path())
         return render(request, self.get_template_name(), {
             'object': instance,
             'link_name': self.linkName,
@@ -538,10 +542,26 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             'tab': self.tab,
             'status': status,
             'statusString': statusString,
-            'return_url': request.get_full_path(),
+            'return_url': return_url,
             **self.get_extra_context(request, instance),
         })
 
+
+def cleanUrl(url):
+    parts = url.split('?')
+    if len(parts) == 1:
+        return parts[0] + '?'
+    result = parts[0] + '?'
+    parts = parts[1].split('&')
+    for part in parts:
+        if not part.strip():
+            continue
+        if not (part.startswith('statusString') or part.startswith('toggle')):
+            result = result + part + '&'
+    return result
+
+
+    
 
 # CsafMatches view for one Device
 @register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )

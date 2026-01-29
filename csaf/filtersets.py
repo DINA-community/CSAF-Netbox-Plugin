@@ -1,8 +1,11 @@
 import django_filters
+from dcim.models.devices import Device
 from django import forms
+from django_filters import NumberFilter
 from django.db.models import Q
-from netbox.forms import NetBoxModelFilterSetForm
 from netbox.filtersets import NetBoxModelFilterSet
+from utilities.filters import MultiValueCharFilter
+from d3c.models import Software
 from .models import CsafDocument, CsafMatch
 
 
@@ -10,6 +13,21 @@ class CsafDocumentFilterSet(NetBoxModelFilterSet):
     """
     Definition of the Filterset for CsafDocument.
     """
+    title = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    docurl = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    version = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    lang = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    publisher = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
     class Meta:
         model = CsafDocument
         fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
@@ -26,7 +44,30 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     """
     class Meta:
         model = CsafMatch
-        fields = ()
+        fields = ('id', 'device_id', 'software_id', 'csaf_document_id', 'status')
+
+    device_id = django_filters.ModelMultipleChoiceFilter(
+        queryset = Device.objects.all(),
+        label = 'Devices',
+    )
+
+    software_id = django_filters.ModelMultipleChoiceFilter(
+        queryset = Software.objects.all(),
+        label = 'Software',
+    )
+
+    csaf_document_id = django_filters.ModelMultipleChoiceFilter(
+        queryset = CsafDocument.objects.all(),
+        label = 'Documents',
+    )
+    minscore = NumberFilter(
+        field_name='score',
+        lookup_expr='gt',
+    )
+    maxscore = NumberFilter(
+        field_name='score',
+        lookup_expr='lt',
+    )
 
     status = django_filters.MultipleChoiceFilter(
         choices=CsafMatch.Status,
