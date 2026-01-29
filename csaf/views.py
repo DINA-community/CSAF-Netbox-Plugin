@@ -370,18 +370,6 @@ class CsafMatchView(generic.ObjectView):
     queryset = models.CsafMatch.objects.all()
 
 
-@register_model_view(models.CsafMatch, name='list', path='', detail=False)
-class CsafMatchListView(generic.ObjectListView):
-    """ This view handles the request for displaying multiple CsafMatches as a table. """
-    queryset = models.CsafMatch.objects.all()
-    table = tables.CsafMatchTable
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
-
-
 @register_model_view(models.CsafMatch, name='add', detail=False)
 @register_model_view(models.CsafMatch, name='edit')
 class CsafMatchEditView(generic.ObjectEditView):
@@ -402,6 +390,80 @@ class CsafMatchBulkDeleteView(generic.BulkDeleteView):
     queryset = models.CsafMatch.objects.all()
     filtersets = filtersets.CsafMatchFilterSet
     table = tables.CsafMatchTable
+
+
+# CsafMatches view for all Matches
+@register_model_view(models.CsafMatch, name='list', path='', detail=False)
+class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
+    """ This view handles the request for displaying multiple CsafMatches as a table. """
+    model = models.CsafMatch
+    queryset = models.CsafMatch.objects.all()
+    filterset = filtersets.CsafMatchFilterSet
+    table = tables.CsafMatchTable
+    base_template = 'generic/object_list.html'
+    template_name = 'csaf/csafmatch_list.html'
+    actions = {
+        'add': {'add'},
+        'bulk_edit': {'change'},
+        'bulk_delete': {'delete'},
+    }
+    def get(self, request, *args, **kwargs):
+        statusString, status, statusSearch = handleStatus(request)
+        if self.filterset:
+            self.queryset = self.filterset(request.GET, self.queryset, request=request).qs
+        childObjects = self.queryset.filter(status__in=statusSearch)
+
+        # Determine the available actions
+        actions = self.get_permitted_actions(request.user, model=self.model)
+        has_bulk_actions = any([a.startswith('bulk_') for a in actions])
+
+        table = self.get_table(childObjects, request, has_bulk_actions)
+
+        # If this is an HTMX request, return only the rendered table HTML
+        if htmx_partial(request):
+            return render(request, 'htmx/table.html', {
+                'table': table,
+                'model': self.model,
+            })
+
+        return render(request, self.template_name, {
+            'model': self.model,
+            'base_template': self.base_template,
+            'table': table,
+            'table_config': f'{table.name}_config',
+            'table_configs': get_table_configs(table, request.user),
+            'actions': actions,
+            'status': status,
+            'statusString': statusString,
+            'return_url': request.get_full_path(),
+            'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
+            **self.get_extra_context(request),
+        })
+
+    def post(self, request, *args, **kwargs):
+        logger = logging.getLogger('csaf.views.CsafMatchListView')
+        logger.debug("POST from Match List")
+
+        user = request.user
+        if not user.has_perms(('csaf.edit_csafmatch',)):
+            return self.handle_no_permission()
+
+        targetStatus = request.POST.get('targetStatus', "")
+        if targetStatus not in ['N', 'O', 'C', 'R', 'F']:
+            messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
+            return self.get(request, args, kwargs)
+
+        selected_objects = self.queryset.filter(
+            pk__in=request.POST.getlist('pk'),
+        )
+        with transaction.atomic():
+            count = 0
+            for csafMatch in selected_objects:
+                csafMatch.status = targetStatus
+                csafMatch.save()
+                count += 1
+        messages.success(request, f"Updated {count} CSAF-Matches")
+        return redirect(self.get_return_url(request))
 
 
 class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
