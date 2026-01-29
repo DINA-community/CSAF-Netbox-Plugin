@@ -15,6 +15,8 @@ class CsafDocumentFilterSet(NetBoxModelFilterSet):
         fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
 
     def search(self, queryset, title, value):
+        if not value.strip():
+            return queryset
         return queryset.filter(title__icontains=value)
 
 

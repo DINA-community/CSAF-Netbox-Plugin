@@ -334,6 +334,7 @@ class CsafDocumentListView(generic.ObjectListView):
             ).values('c')), 0),
     )
     table = tables.CsafDocumentTable
+    filterset = filtersets.CsafDocumentFilterSet
     actions = {
         'add': {'add'},
         'bulk_edit': {'change'},
