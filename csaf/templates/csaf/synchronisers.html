@@ -1,0 +1,65 @@
+{% extends 'generic/_base.html' %}
+{% load buttons %}
+{% load custom_links %}
+{% load helpers %}
+{% load perms %}
+{% load plugins %}
+{% load tabs %}
+{% load i18n %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+<div class="row mb-3">
+
+  <div class="col col-md-12">
+    <div class="card">
+      <div class="card-body table-responsive">
+        <table class="table">
+          <tr>
+            <th>Name</th>
+            <th>Last Sync</th>
+            <th>State</th>
+            <th>Started</th>
+            <th>Actions</th>
+          </tr>
+          {% for row in data %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.lastSync }}</td>
+              <td>{{ row.state }}</td>
+              <td>{{ row.started }}</td>
+              <td>
+                {% if row.state == "stopped" %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
+                {% if row.state == "running" %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% if error_help %}
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <div class="card-header">
+        Possible causes and solutions for errors:
+      </div>
+      <div class="card-body">
+        <dl>
+          <dt>Failed to resolve (Errno -2)</dt>
+          <dd>The <em>url</em> for the synchroniser/matcher is not correct in the Netbox configuration file.</dd>
+
+          <dt>Failed to establish a new connection (Errno 111)</dt>
+          <dd>Netbox could not connect to the synchroniser/matcher.
+            Either because the synchroniser/matcher is not running, or because the URL is not correct.
+            When running in a container environment (such as Docker) the host <i>localhost</i> refers to
+            the pod of Netbox itself and is most likely not correct.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

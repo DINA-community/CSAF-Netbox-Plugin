@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=60", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name =  "csaf"
+version = "0.1.0"
+authors = [
+    {name = "Hylke van der Schaaf", email = "hylke.vanderschaaf@iosb.fraunhofer.de"},
+]
+description = "Manage CSAF advisories in NetBox."
+readme = "README.md"
+
+classifiers=[
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Developers',
+    'Natural Language :: English',
+    "Programming Language :: Python :: 3 :: Only",
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+]
+dependencies = [
+    "d3c"
+]
+
+requires-python = ">=3.10.0"

@@ -1,0 +1,49 @@
+{% extends 'generic/object.html' %}
+{% load buttons %}
+{% load static %}
+{% load helpers %}
+{% load plugins %}
+{% load i18n %}
+{% load perms %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">CSAF Document</h5>
+          <table class="table table-hover attr-table">
+            <tr>
+              <th scope="row">id</th>
+              <td>{{ object.id }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Title</th>
+              <td>{{ object.title|placeholder }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Version</th>
+              <td>{{ object.version }}</td>
+            </tr>
+            <tr>
+              <th scope="row">URL</th>
+              <td>{{ object.docurl|placeholder }}</td>
+            </tr>
+            <tr>
+              <th scope="row">External Link</th>
+              <td><a href="{{ object.link }}">{{ object.link }}</a></td>
+            </tr>
+            <tr>
+              <th scope="row">Language</th>
+              <td>{{ object.lang|placeholder }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Publisher</th>
+              <td>{{ object.publisher|placeholder }}</td>
+            </tr>
+          </table>
+      </div>
+      {% include 'inc/panels/tags.html' %}
+    </div>
+  </div>
+
+{% endblock content %}

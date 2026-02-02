@@ -1,0 +1,5 @@
+package.json
+package-lock.json
+csaf.egg-info
+
+__pycache__
