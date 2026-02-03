@@ -61,7 +61,7 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
@@ -113,7 +113,7 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
         fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
 
 
 class CsafMatchTable(NetBoxTable):
