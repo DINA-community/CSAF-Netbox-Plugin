@@ -361,7 +361,7 @@ class CsafDocumentDeleteView(generic.ObjectDeleteView):
 class CsafDocumentBulkDeleteView(generic.BulkDeleteView):
     """ This view handles the buld delete requests for the CsafDocument model. """
     queryset = models.CsafDocument.objects.all()
-    filtersets = filtersets.CsafDocumentFilterSet
+    filterset = filtersets.CsafDocumentFilterSet
     table = tables.CsafDocumentTable
 
 
@@ -389,7 +389,7 @@ class CsafMatchDeleteView(generic.ObjectDeleteView):
 class CsafMatchBulkDeleteView(generic.BulkDeleteView):
     """ This view handles the buld delete requests for the CsafMatch model. """
     queryset = models.CsafMatch.objects.all()
-    filtersets = filtersets.CsafMatchFilterSet
+    filterset = filtersets.CsafMatchFilterSet
     table = tables.CsafMatchTable
 
 
