@@ -36,7 +36,8 @@ PLUGINS_CONFIG = {
           'name': 'CSAF Matcher',
           'url': 'http://127.0.0.1:8998/',
           'isMatcher': True,
-          'netboxBaseUrl': 'http://localhost:8000',
+          'netboxBaseUrl': 'http://localhost:8000', # The base URL of Netbox as the Matcher sees it.
+           'isdubaBaseUrl': 'http://localhost:5371',  # The base URL of ISDuBA as the Matcher sees it.
         },
       ]
     }
