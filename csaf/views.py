@@ -64,8 +64,9 @@ class Synchronisers(View):
             return redirect(request.path)
 
         data = []
-        idx = 0;
+        idx = -1;
         for system in systems:
+            idx += 1
             name = getFromJson(system, ('name',), 'Unnamed')
             (token, msg) = getSyncToken(request, system)
             if msg != OK_LABEL:
@@ -79,7 +80,6 @@ class Synchronisers(View):
                     'index': idx,
                 }
                 data.append(systemData)
-                idx += 1
                 continue
             status = getStatus(request, system, token)
             if status is None:
@@ -91,7 +91,6 @@ class Synchronisers(View):
                     'index': idx,
                 }
                 data.append(systemData)
-                idx += 1
                 continue
             lastRunStr = status.get('last_matching')
             lastRunStr = status.get('last_synchronization', lastRunStr)
@@ -112,13 +111,39 @@ class Synchronisers(View):
                 'started': started,
                 'index': idx,
             }
+            isMatcher = getFromJson(system, ('isMatcher',), False)
+            if isMatcher:
+                systemData['clear'] = CLEAR_TABLE
+                systemData['info'] = buildInfoStringMatcher(system, status)
+            elif 'total_products_fetched' in status:
+                systemData['info'] = buildInfoStringCsafSync(system, status)
             data.append(systemData)
-            idx += 1
 
         return render(request, 'csaf/synchronisers.html', {
             'data': data,
             'error_help': error_help,
         })
+
+def buildInfoStringCsafSync(system, status):
+    return {
+            'Total products fetched': status.get('total_products_fetched'),
+            'Total relationship fetch calls': status.get('total_relationship_fetch_calls'),
+            'Total relationships fetched': status.get('total_relationships_fetched'),
+            'Pending products': status.get('pending_products'),
+            'Pending relationships': status.get('pending_relationships'),
+            'Preprocessed products': status.get('preprocessed_products'),
+            'Data sources': status.get('data_sources'),
+        }
+
+def buildInfoStringMatcher(system, status):
+    return {
+            'Total Runs': status.get('total_match_runs'),
+            'Total Pairs': status.get('total_pairs_processed'),
+            'Total Matches': status.get('total_matches_found'),
+            'Pending Tasks': status.get('pending_tasks'),
+            'Pending Batches': status.get('pending_match_batches')
+        }
+
 
 def triggerMatcher(request, system, token):
     device = request.GET.get('device', -1)
