@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name =  "csaf"
-version = "0.1.0"
+version = "1.0"
 authors = [
     {name = "Hylke van der Schaaf", email = "hylke.vanderschaaf@iosb.fraunhofer.de"},
 ]

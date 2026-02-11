@@ -62,11 +62,11 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     )
     minscore = NumberFilter(
         field_name='score',
-        lookup_expr='gt',
+        lookup_expr='gte',
     )
     maxscore = NumberFilter(
         field_name='score',
-        lookup_expr='lt',
+        lookup_expr='lte',
     )
 
     status = django_filters.MultipleChoiceFilter(

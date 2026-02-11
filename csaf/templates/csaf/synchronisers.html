@@ -26,11 +26,21 @@
             <tr>
               <td>{{ row.name }}</td>
               <td>{{ row.lastSync }}</td>
-              <td>{{ row.state }}</td>
+              <td>
+                {{ row.state }}
+                <ul>
+                {% for key,value in row.info.items %}
+                  <li>{{ key }}: {{ value }}</li>
+                {% endfor %}
+                </ul>
+              </td>
               <td>{{ row.started }}</td>
               <td>
                 {% if row.state == "stopped" %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
                 {% if row.state == "running" %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
+                {% if row.clear %}
+                  {% for key,item in row.clear.items %}<a class="btn btn-info" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>{% endfor %}
+                {% endif %}
               </td>
             </tr>
           {% endfor %}

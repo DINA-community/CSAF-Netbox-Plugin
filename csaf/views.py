@@ -19,6 +19,13 @@ from d3c.models import Software
 
 OK_LABEL = 'OK'
 
+CLEAR_TABLE = {
+    'all': {'title':'All'}, 
+    'matches': {'title':'Matches'},
+    'assets': {'title':'Assets'},
+    'csaf': {'title':'CSAF Docs'}
+}
+
 class Synchronisers(View):
     """
     Display the status of configured synchronisers.
@@ -26,46 +33,20 @@ class Synchronisers(View):
     def get(self, request):
         error_help = False
         systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
-        try:
-            startStr = request.GET.get('start', -1)
-            startIdx = int(startStr)
-            if startIdx >= 0 and startIdx < len(systems):
-                system = systems[startIdx]
-                (token, msg) = getSyncToken(request, system)
-                if token is not None:
-                    startSystem(request, system, token)
-                return redirect(request.path)
-        except ValueError:
-            messages.error(request, f"Not an int: {startStr}")
 
-        try:
-            stopStr = request.GET.get('stop', -1)
-            stopIdx = int(stopStr)
-            if stopIdx >= 0 and stopIdx < len(systems):
-                system = systems[stopIdx]
-                (token, msg) = getSyncToken(request, system)
-                if token is not None:
-                    stopSystem(request, system, token)
-                return redirect(request.path)
-        except ValueError:
-            messages.error(request, f"Not an int: {stopStr}")
-
-        trigger = request.GET.get('trigger', None)
-        if (trigger is not None):
-            print("Triggering...")
-            for system in systems:
-                isMatcher = getFromJson(system, ('isMatcher',), False)
-                if isMatcher:
-                    (token, msg) = getSyncToken(request, system)
-                    if token is not None:
-                        triggerMatcher(request, system, token)
-                    else:
-                        print(f"No token: {system}")
-            return redirect(request.path)
+        if result := maybeStartSystem(systems, request):
+            return result
+        if result := maybeStopSystem(systems, request):
+            return result
+        if result := maybeTriggerMatch(systems, request):
+            return result
+        if result := maybeClear(systems, request):
+            return result
 
         data = []
-        idx = 0;
+        idx = -1;
         for system in systems:
+            idx += 1
             name = getFromJson(system, ('name',), 'Unnamed')
             (token, msg) = getSyncToken(request, system)
             if msg != OK_LABEL:
@@ -79,7 +60,6 @@ class Synchronisers(View):
                     'index': idx,
                 }
                 data.append(systemData)
-                idx += 1
                 continue
             status = getStatus(request, system, token)
             if status is None:
@@ -91,7 +71,6 @@ class Synchronisers(View):
                     'index': idx,
                 }
                 data.append(systemData)
-                idx += 1
                 continue
             lastRunStr = status.get('last_matching')
             lastRunStr = status.get('last_synchronization', lastRunStr)
@@ -112,13 +91,54 @@ class Synchronisers(View):
                 'started': started,
                 'index': idx,
             }
+            isMatcher = getFromJson(system, ('isMatcher',), False)
+            if isMatcher:
+                systemData['clear'] = CLEAR_TABLE
+                systemData['info'] = buildInfoStringMatcher(system, status)
+            elif 'total_products_fetched' in status:
+                systemData['info'] = buildInfoStringCsafSync(system, status)
             data.append(systemData)
-            idx += 1
 
         return render(request, 'csaf/synchronisers.html', {
             'data': data,
             'error_help': error_help,
         })
+
+def buildInfoStringCsafSync(system, status):
+    return {
+            'Total products fetched': status.get('total_products_fetched'),
+            'Total relationship fetch calls': status.get('total_relationship_fetch_calls'),
+            'Total relationships fetched': status.get('total_relationships_fetched'),
+            'Pending products': status.get('pending_products'),
+            'Pending relationships': status.get('pending_relationships'),
+            'Preprocessed products': status.get('preprocessed_products'),
+            'Data sources': status.get('data_sources'),
+        }
+
+def buildInfoStringMatcher(system, status):
+    return {
+            'Total Runs': status.get('total_match_runs'),
+            'Total Pairs': status.get('total_pairs_processed'),
+            'Total Matches': status.get('total_matches_found'),
+            'Pending Tasks': status.get('pending_tasks'),
+            'Pending Batches': status.get('pending_match_batches')
+        }
+
+
+def maybeTriggerMatch(systems, request):
+    trigger = request.GET.get('trigger', None)
+    if (trigger is not None):
+        print("Triggering...")
+        for system in systems:
+            isMatcher = getFromJson(system, ('isMatcher',), False)
+            if isMatcher:
+                (token, msg) = getSyncToken(request, system)
+                if token is not None:
+                    triggerMatcher(request, system, token)
+                else:
+                    print(f"No token: {system}")
+        return redirect(request.path)
+
 
 def triggerMatcher(request, system, token):
     device = request.GET.get('device', -1)
@@ -209,6 +229,20 @@ def addUrlForDocument(list, id):
         return
 
 
+def maybeStartSystem(systems, request):
+    try:
+        startStr = request.GET.get('start', -1)
+        startIdx = int(startStr)
+        if startIdx >= 0 and startIdx < len(systems):
+            system = systems[startIdx]
+            (token, msg) = getSyncToken(request, system)
+            if token is not None:
+                startSystem(request, system, token)
+            return redirect(request.path)
+    except ValueError:
+        messages.error(request, f"Not an int: {startStr}")
+
+
 def startSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
@@ -229,6 +263,20 @@ def startSystem(request, system, token):
         messages.error(request, f"Failed to start {name}: {ex}")
 
 
+def maybeStopSystem(systems, request):
+    try:
+        stopStr = request.GET.get('stop', -1)
+        stopIdx = int(stopStr)
+        if stopIdx >= 0 and stopIdx < len(systems):
+            system = systems[stopIdx]
+            (token, msg) = getSyncToken(request, system)
+            if token is not None:
+                stopSystem(request, system, token)
+            return redirect(request.path)
+    except ValueError:
+        messages.error(request, f"Not an int: {stopStr}")
+
+
 def stopSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
@@ -247,6 +295,51 @@ def stopSystem(request, system, token):
             messages.success(request, f"Stopped {name}")
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to stop {name}: {ex}")
+
+
+def maybeClear(systems, request):
+    try:
+        clearStr = request.GET.get('clear', None)
+        if clearStr is None:
+            return False
+        if not clearStr in CLEAR_TABLE:
+            messages.error(request, f"Unknown clear command: {clearStr}")
+            return False
+        idxStr = request.GET.get('idx', -1)
+        clearIdx = int(idxStr)
+        if clearIdx >= 0 and clearIdx < len(systems):
+            system = systems[clearIdx]
+            (token, msg) = getSyncToken(request, system)
+            if token is not None:
+                clearSystem(request, system, token, clearStr)
+            return redirect(request.path)
+    except ValueError:
+        messages.error(request, f"Not an int: {idxStr}")
+    return False
+
+
+def clearSystem(request, system, token, clearType):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl',), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    url = f"{baseUrl}/clear/{clearType}"
+    if (clearType == 'assets'):
+        url += '?origin_uri=' + getFromJson(system, ('netboxBaseUrl',), '')
+    if (clearType == 'csaf'):
+        url += '?origin_uri=' + getFromJson(system, ('isdubaBaseUrl',), '')
+
+    try:
+        response = requests.post(
+            url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to clear {clearType}: {response.text}")
+        else:
+            messages.success(request, f"Cleared {clearType}")
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to clear {clearType}: {ex}")
 
 
 def getStatus(request, system, token):
@@ -361,7 +454,7 @@ class CsafDocumentDeleteView(generic.ObjectDeleteView):
 class CsafDocumentBulkDeleteView(generic.BulkDeleteView):
     """ This view handles the buld delete requests for the CsafDocument model. """
     queryset = models.CsafDocument.objects.all()
-    filtersets = filtersets.CsafDocumentFilterSet
+    filterset = filtersets.CsafDocumentFilterSet
     table = tables.CsafDocumentTable
 
 
@@ -389,7 +482,7 @@ class CsafMatchDeleteView(generic.ObjectDeleteView):
 class CsafMatchBulkDeleteView(generic.BulkDeleteView):
     """ This view handles the buld delete requests for the CsafMatch model. """
     queryset = models.CsafMatch.objects.all()
-    filtersets = filtersets.CsafMatchFilterSet
+    filterset = filtersets.CsafMatchFilterSet
     table = tables.CsafMatchTable
 
 

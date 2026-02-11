@@ -10,33 +10,34 @@ PLUGINS = ["csaf","d3c"]
 
 The following options must be configured as well:
 
-```
+```Python
 PLUGINS_CONFIG = {
   'csaf': {
     'isduba': {
-      'keycloak_url': '<Base URL of KeyCloak used by IsDuBa>',
-      'keycloak_verify_ssl': False,
-      'username': '<user name for KeyCloak>',
-      'password': '<user password for KeyCloak>'
+      'keycloak_url': 'http://keyCloak.my.domain/', # Base URL of KeyCloak used by IsDuBa
+      'keycloak_verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False).
+      'username': 'MyUserName', # user name for KeyCloak
+      'password': 'MyPassword' # user password for KeyCloak
     },
     'synchronisers': {
-      'username': '<user name for synchronisers/matchers>',
-      'password': '<password for synchronisers/matchers>',
-      'verify_ssl': False,
-      'urls': [
+      'username': '<user name for synchronisers/matchers>', # Can be overridden for individual Synchronisers.
+      'password': '<password for synchronisers/matchers>', # Can be overridden for individual Synchronisers.
+      'verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False). Can be overridden for individual Synchronisers.
+      'urls': [ # The list of Synchronisers and Matchers
         {
-          'name': 'ISDuBA Sync',
-          'url': 'http://127.0.0.1:8991/'
+          'name': 'ISDuBA Sync', # The display name of the Synchoniser.
+          'url': 'http://127.0.0.1:8991/' # The URL that Netbox can use to reach the Synchoniser.
         },
         {
-          'name': 'Netbox Sync',
-          'url': 'http://127.0.0.1:8992/'
+          'name': 'Netbox Sync', # The display name of the Synchoniser.
+          'url': 'http://127.0.0.1:8992/' # The URL that Netbox can use to reach the Synchoniser.
         },
         {
-          'name': 'CSAF Matcher',
-          'url': 'http://127.0.0.1:8998/',
-          'isMatcher': True,
-          'netboxBaseUrl': 'http://localhost:8000',
+          'name': 'CSAF Matcher', # The display name of the Matcher.
+          'url': 'http://127.0.0.1:8998/', # The URL that Netbox can use to reach the matcher.
+          'isMatcher': True,  # Set to True if this is a Matcher, empty or False for Synchronisers.
+          'netboxBaseUrl': 'http://localhost:8000', # The base URL of Netbox as the Matcher sees it.
+           'isdubaBaseUrl': 'http://localhost:5371',  # The base URL of ISDuBA as the Matcher sees it.
         },
       ]
     }

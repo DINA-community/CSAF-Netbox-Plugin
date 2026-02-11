@@ -25,11 +25,11 @@
 
     <div class="row mb-3">
       <div class="col-auto table-controls noprint">
-        <a class="btn {% if status.N %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
-        <a class="btn {% if status.O %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
-        <a class="btn {% if status.C %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
-        <a class="btn {% if status.R %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=R">Resolved</a>
-        <a class="btn {% if status.F %}btn-success{% else %}btn-info{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
+        <a class="btn {% if status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
+        <a class="btn {% if status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
+        <a class="btn {% if status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        <a class="btn {% if status.R %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=R">Resolved</a>
+        <a class="btn {% if status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
       <div class="col-auto table-controls noprint">
@@ -45,6 +45,32 @@
 
     <form method="post">
       {% csrf_token %}
+      {# "Select all" form #}
+        {% if table.paginator.num_pages > 1 %}
+          <div id="select-all-box" class="d-none card d-print-none">
+            <div class="form col-md-12">
+              <div class="card-body d-flex justify-content-between">
+                <div class="form-check">
+                  <input type="checkbox" id="select-all" name="_all" class="form-check-input" />
+                  <label for="select-all" class="form-check-label">
+                    {% blocktrans trimmed with count=table.page.paginator.count object_type_plural=table.data.verbose_name_plural %}
+                      Select <strong>all <span class="total-object-count">{{ count }}</span> {{ object_type_plural }}</strong> matching query
+                    {% endblocktrans %}
+                  </label>
+                </div>
+                <div class="bulk-action-buttons">
+                  {% if 'bulk_edit' in actions %}
+                    {% bulk_edit_button model query_params=request.GET %}
+                  {% endif %}
+                  {% if 'bulk_delete' in actions %}
+                    {% bulk_delete_button model query_params=request.GET %}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
       <input type="hidden" name="statusString" value="{{ statusString }}">
       <input type="hidden" name="return_url" value="{{ return_url }}">
       <div class="col col-md-12">
