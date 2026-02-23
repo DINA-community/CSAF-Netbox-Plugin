@@ -36,9 +36,9 @@
               </td>
               <td>{{ row.started }}</td>
               <td>
-                {% if row.state == "stopped" %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
-                {% if row.state == "running" %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
-                {% if row.clear %}
+                {% if row.state == "stopped" and row.canStart %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
+                {% if row.state == "running" and row.canStop %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
+                {% if row.clear and row.canClear %}
                   {% for key,item in row.clear.items %}<a class="btn btn-info" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>{% endfor %}
                 {% endif %}
               </td>

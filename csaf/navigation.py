@@ -35,7 +35,7 @@ softwareWithMatches = PluginMenuItem(
 synchronisers = PluginMenuItem(
     link='plugins:csaf:synchronisers',
     link_text='Synchronisers',
-    permissions=('csaf.view_csafdocument',),
+    permissions=('csaf.viewSynchronisers_csafmatch',),
     buttons=()
 )
 

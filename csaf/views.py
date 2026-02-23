@@ -11,6 +11,7 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
 from netbox.views import generic
+from utilities.exceptions import PermissionsViolation
 from utilities.htmx import htmx_partial
 from utilities.tables import get_table_configs
 from utilities.views import ViewTab, register_model_view, GetReturnURLMixin
@@ -26,11 +27,18 @@ CLEAR_TABLE = {
     'csaf': {'title':'CSAF Docs'}
 }
 
+RIGHT_SYNC_VIEW = "csaf.viewSynchronisers_csafmatch"
+RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
+RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
+RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
+
 class Synchronisers(View):
     """
     Display the status of configured synchronisers.
     """
     def get(self, request):
+        if not request.user.has_perm(RIGHT_SYNC_VIEW):
+            raise PermissionsViolation(f'User does not have permission {RIGHT_SYNC_VIEW}')
         error_help = False
         systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
 
@@ -97,6 +105,12 @@ class Synchronisers(View):
                 systemData['info'] = buildInfoStringMatcher(system, status)
             elif 'total_products_fetched' in status:
                 systemData['info'] = buildInfoStringCsafSync(system, status)
+            if request.user.has_perm(RIGHT_SYNC_START):
+                systemData['canStart'] = True
+            if request.user.has_perm(RIGHT_SYNC_STOP):
+                systemData['canStop'] = True
+            if request.user.has_perm(RIGHT_SYNC_CLEAR):
+                systemData['canClear'] = True
             data.append(systemData)
 
         return render(request, 'csaf/synchronisers.html', {
@@ -234,6 +248,10 @@ def maybeStartSystem(systems, request):
         startStr = request.GET.get('start', -1)
         startIdx = int(startStr)
         if startIdx >= 0 and startIdx < len(systems):
+            if not request.user.has_perm(RIGHT_SYNC_START):
+                messages.error(request, f'User does not have permission {RIGHT_SYNC_START}')
+                return
+
             system = systems[startIdx]
             (token, msg) = getSyncToken(request, system)
             if token is not None:
@@ -268,6 +286,9 @@ def maybeStopSystem(systems, request):
         stopStr = request.GET.get('stop', -1)
         stopIdx = int(stopStr)
         if stopIdx >= 0 and stopIdx < len(systems):
+            if not request.user.has_perm(RIGHT_SYNC_STOP):
+                messages.error(request, f'User does not have permission {RIGHT_SYNC_STOP}')
+                return
             system = systems[stopIdx]
             (token, msg) = getSyncToken(request, system)
             if token is not None:
@@ -302,6 +323,9 @@ def maybeClear(systems, request):
         clearStr = request.GET.get('clear', None)
         if clearStr is None:
             return False
+        if not request.user.has_perm(RIGHT_SYNC_CLEAR):
+            messages.error(request, f'User does not have permission {RIGHT_SYNC_CLEAR}')
+            return
         if not clearStr in CLEAR_TABLE:
             messages.error(request, f"Unknown clear command: {clearStr}")
             return False

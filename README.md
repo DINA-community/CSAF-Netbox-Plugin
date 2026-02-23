@@ -37,7 +37,7 @@ PLUGINS_CONFIG = {
           'url': 'http://127.0.0.1:8998/', # The URL that Netbox can use to reach the matcher.
           'isMatcher': True,  # Set to True if this is a Matcher, empty or False for Synchronisers.
           'netboxBaseUrl': 'http://localhost:8000', # The base URL of Netbox as the Matcher sees it.
-           'isdubaBaseUrl': 'http://localhost:5371',  # The base URL of ISDuBA as the Matcher sees it.
+          'isdubaBaseUrl': 'http://localhost:5371',  # The base URL of ISDuBA as the Matcher sees it.
         },
       ]
     }
@@ -47,6 +47,20 @@ PLUGINS_CONFIG = {
 
 The `username` and `password` for Synchronisers and Matcher can be overridden on a per-matcher basis.
 The `netboxBaseUrl` of the CSAF Matcher must be set to the url of Netbox as the Matcher sees it.
+
+
+## User Rights
+
+For controlling synchronisers and matchers additional rights are required for non-admin users.
+These must be added as _Additional actions_ on the _Netbox CSAF|csaf match_ Object type.
+
+- **viewSynchronisers**: Access the _Synchronisers_ page.
+- **startSynchronisers**: Start synchronisers and Matcher tasks.
+- **stopSynchronisers**: Stop synchronisers and Matcher tasks.
+- **clearSynchronisers**: Clear the cache database of the Matcher.
+
+An example of these additional actions is in the image below:
+![Example additional rights](images/additional_rights.png)
 
 
 ## Installation of the CSAF Plugin
