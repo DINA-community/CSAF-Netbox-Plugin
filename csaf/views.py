@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 from django.conf import settings
 import requests
+import time
 from csaf.api.views import getFromJson
 from dcim.models import Device
 from django.contrib import messages
@@ -103,6 +104,7 @@ class Synchronisers(View):
             if isMatcher:
                 systemData['clear'] = CLEAR_TABLE
                 systemData['info'] = buildInfoStringMatcher(system, status)
+                systemData['running'] = status['running']
             elif 'total_products_fetched' in status:
                 systemData['info'] = buildInfoStringCsafSync(system, status)
             if request.user.has_perm(RIGHT_SYNC_START):
@@ -277,6 +279,7 @@ def startSystem(request, system, token):
             messages.error(request, f"Failed to start {name}: {response.text}")
         else:
             messages.success(request, f"Started {name}")
+            time.sleep(0.2) # Give the system some time before requesting status
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to start {name}: {ex}")
 
@@ -303,10 +306,18 @@ def stopSystem(request, system, token):
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
-    startUrl = f"{baseUrl}/task/stop"
+    url = f"{baseUrl}/task/stop"
+    try:
+        taskIdStr = request.GET.get('task_id', -1)
+        taskId = int(taskIdStr)
+    except ValueError:
+        taskId = -1
+    if taskId >= 0:
+        url += f'?task_id={taskId}'
+
     try:
         response = requests.post(
-            startUrl,
+            url,
             headers={'Authorization': 'Bearer ' + token},
             verify=verifySsl,
         )
@@ -314,6 +325,7 @@ def stopSystem(request, system, token):
             messages.error(request, f"Failed to stop {name}: {response.text}")
         else:
             messages.success(request, f"Stopped {name}")
+            time.sleep(0.2) # Give the system some time before requesting status
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to stop {name}: {ex}")
 
@@ -362,6 +374,7 @@ def clearSystem(request, system, token, clearType):
             messages.error(request, f"Failed to clear {clearType}: {response.text}")
         else:
             messages.success(request, f"Cleared {clearType}")
+            time.sleep(0.2) # Give the system some time before requesting status
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to clear {clearType}: {ex}")
 
@@ -371,7 +384,6 @@ def getStatus(request, system, token):
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
-    type = getFromJson(system, ('type',), 'normal')
     status_url = f"{baseUrl}/task/status"
     try:
         response = requests.get(
@@ -381,9 +393,43 @@ def getStatus(request, system, token):
         )
         if (response.status_code < 200 or response.status_code >= 300):
             messages.error(request, f"Failed to fetch status of {name}: {response.text}")
-        return response.json()
+        result = response.json()
+        isMatcher = getFromJson(system, ('isMatcher',), False)
+        if isMatcher:
+            result['running'] = getRunningMatchers(request, system, token)
+        return result
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to fetch status of {name}: {ex}")
+
+
+def getRunningMatchers(request, system, token):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    status_url = f"{baseUrl}/task/running"
+    try:
+        response = requests.get(
+            status_url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to fetch running tasks of {name}: {response.text}")
+        result = response.json()
+        for item in result:
+            item['start_time'] = datetime.fromtimestamp(item['start_time'])
+            aCount = len(item['assets'])
+            dCount = len(item['csaf_documents'])
+            details = ''
+            if aCount != 0:
+                details += f' Assets: {aCount}'
+            if dCount != 0:
+                details += f' Documents: {dCount}'
+            item['details'] = details
+        return result
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to fetch running tasks of {name}: {ex}")
 
 
 def getSyncToken(request, subsystem) -> str:
