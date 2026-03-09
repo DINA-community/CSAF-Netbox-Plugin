@@ -487,15 +487,47 @@ class CsafDocumentView(generic.ObjectView):
 class CsafDocumentListView(generic.ObjectListView):
     """ This view handles the request for displaying multiple CsafDocuments as a table. """
     queryset = models.CsafDocument.objects.annotate(
-        match_count=Coalesce(Subquery(
-            models.CsafMatch.objects.filter(
-                **{'csaf_document': OuterRef('pk')}
-            ).filter(status__in=[models.CsafMatch.Status.NEW,models.CsafMatch.Status.CONFIRMED]).values(
-                'csaf_document'
-            ).annotate(
-                c=Count('*')
-            ).values('c')), 0),
-    )
+            new_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'csaf_document': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.NEW)
+                    .values('csaf_document')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            confirmed_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'csaf_document': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.CONFIRMED)
+                    .values('csaf_document')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            reopened_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'csaf_document': OuterRef('pk')})
+                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .values('csaf_document')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            resolved_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'csaf_document': OuterRef('pk')})
+                    .filter(status__in=[
+                        models.CsafMatch.Status.FALSE_POSITIVE,
+                        models.CsafMatch.Status.RESOLVED])
+                    .values('csaf_document')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            total_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'csaf_document': OuterRef('pk')})
+                    .values('csaf_document')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        )
     table = tables.CsafDocumentTable
     filterset = filtersets.CsafDocumentFilterSet
     filterset_form = forms.CsafDocumentFilterForm

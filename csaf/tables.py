@@ -18,8 +18,10 @@ class CsafDocumentTable(NetBoxTable):
     """
     class Meta(NetBoxTable.Meta):
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher', 'match_count')
-        default_columns = ('id', 'title', 'docurl', 'link', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher',
+                  'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'title', 'docurl', 'link', 'version', 'lang', 'publisher',
+                           'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
 
     title = tables.Column(
         linkify=True,
@@ -28,6 +30,21 @@ class CsafDocumentTable(NetBoxTable):
     link = tables.Column(
         accessor='docurl',
         verbose_name='Link')
+    new_count = tables.Column(
+        verbose_name=_('New Matches')
+    )
+    confirmed_count = tables.Column(
+        verbose_name=_('Confirmed Matches')
+    )
+    reopened_count = tables.Column(
+        verbose_name=_('Reopened Matches')
+    )
+    resolved_count = tables.Column(
+        verbose_name=_('Resolved Matches')
+    )
+    total_count = tables.Column(
+        verbose_name=_('Total Matches')
+    )
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -156,6 +173,9 @@ class DevicesWithMatchTable(DeviceTable):
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed Matches')
     )
+    reopened_count = tables.Column(
+        verbose_name=_('Reopened Matches')
+    )
     resolved_count = tables.Column(
         verbose_name=_('Resolved Matches')
     )
@@ -170,8 +190,8 @@ class DevicesWithMatchTable(DeviceTable):
             'device_bay_position', 'position', 'face', 'latitude', 'longitude', 'airflow', 'primary_ip', 'primary_ip4',
             'primary_ip6', 'oob_ip', 'cluster', 'virtual_chassis', 'vc_position', 'vc_priority', 'description',
             'config_template', 'comments', 'contacts', 'tags', 'created', 'last_updated',
-            'new_count', 'confirmed_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+            'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
 
 class SynchroniserTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
@@ -189,6 +209,9 @@ class SoftwareWithMatchTable(SoftwareTable):
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed Matches')
     )
+    reopened_count = tables.Column(
+        verbose_name=_('Reopened Matches')
+    )
     resolved_count = tables.Column(
         verbose_name=_('Resolved Matches')
     )
@@ -200,6 +223,6 @@ class SoftwareWithMatchTable(SoftwareTable):
         model = Software
         fields = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'cpe',  'purl',
                   'sbom_url_count', 'hashes_count', 'xgenericuri_count', 'parent_rel_count', 'target_rel_count',
-                  'new_count', 'confirmed_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+                  'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
 
