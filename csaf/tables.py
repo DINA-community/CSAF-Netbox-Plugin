@@ -2,8 +2,9 @@
     This file provides all the table definitions implemented and used by the CSAF-Plugin.
 """
 import django_tables2 as tables
-from dcim.models import Device
+from dcim.models import Device, Module
 from dcim.tables.devices import DeviceTable
+from dcim.tables.modules import ModuleTable
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable
@@ -58,6 +59,9 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     device = tables.Column(
         linkify=True
     )
+    module = tables.Column(
+        linkify=True
+    )
     software = tables.Column(
         linkify=True
     )
@@ -77,14 +81,51 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
         default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+
+
+class CsafMatchListForModuleTable(NetBoxTable):
+    """
+        Table for the CsafMatches for a single Module
+    """
+    device = tables.Column(
+        linkify=True
+    )
+    module = tables.Column(
+        linkify=True
+    )
+    software = tables.Column(
+        linkify=True
+    )
+    csaf_document = tables.Column(
+        linkify=True
+    )
+    link = tables.Column(
+        accessor='csaf_document.docurl',
+        verbose_name='Link')
+    score = tables.TemplateColumn(
+        template_code='{{ value|floatformat:0 }}'
+    )
+
+    def render_link(self, value):
+        external = value.replace("/api/documents/","/#/documents/")
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+
+    class Meta(NetBoxTable.Meta):
+        model = CsafMatch
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
         Table for the CsafMatches for a single CsafDocument
     """
     device = tables.Column(
+        linkify=True
+    )
+    module = tables.Column(
         linkify=True
     )
     software = tables.Column(
@@ -99,8 +140,8 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'software', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'module', 'software', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -110,6 +151,9 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     device = tables.Column(
         linkify=True
     )
+    module = tables.Column(
+        linkify=True
+    )
     software = tables.Column(
         linkify=True
     )
@@ -129,7 +173,7 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
         default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
@@ -140,6 +184,9 @@ class CsafMatchTable(NetBoxTable):
     device = tables.Column(
         linkify=True
     )
+    module = tables.Column(
+        linkify=True
+    )
     software = tables.Column(
         linkify=True
     )
@@ -159,8 +206,8 @@ class CsafMatchTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class DevicesWithMatchTable(DeviceTable):
@@ -192,6 +239,35 @@ class DevicesWithMatchTable(DeviceTable):
             'config_template', 'comments', 'contacts', 'tags', 'created', 'last_updated',
             'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
         default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+
+
+class ModulesWithMatchTable(ModuleTable):
+    """
+        Table of Modules with a Match count.
+    """
+    new_count = tables.Column(
+        verbose_name=_('New Matches')
+    )
+    confirmed_count = tables.Column(
+        verbose_name=_('Confirmed Matches')
+    )
+    reopened_count = tables.Column(
+        verbose_name=_('Reopened Matches')
+    )
+    resolved_count = tables.Column(
+        verbose_name=_('Resolved Matches')
+    )
+    total_count = tables.Column(
+        verbose_name=_('Total Matches')
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = Module
+        fields = ('pk', 'id', 'device', 'module_bay', 'manufacturer', 'module_type', 'status', 'serial', 'asset_tag',
+            'description', 'comments', 'tags', 'created', 'last_updated',
+            'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'device', 'module_bay', 'manufacturer', 'module_type', 'status', 'serial', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+
 
 class SynchroniserTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):

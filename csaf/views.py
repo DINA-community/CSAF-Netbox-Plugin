@@ -4,7 +4,7 @@ from django.conf import settings
 import requests
 import time
 from csaf.api.views import getFromJson
-from dcim.models import Device, DeviceType
+from dcim.models import Device, DeviceType, Module
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, OuterRef, Subquery, QuerySet
@@ -158,6 +158,7 @@ def maybeTriggerMatch(systems, request):
 
 def triggerMatcher(request, system, token):
     device = request.GET.get('device', -1)
+    module = request.GET.get('module', -1)
     software = request.GET.get('software', -1)
 
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
@@ -170,6 +171,7 @@ def triggerMatcher(request, system, token):
         csaf_documents = []
         addUrlForDocument(csaf_documents, request.GET.get('document', None))
         addUrlForDevice(assets, request.GET.get('device', None), system)
+        addUrlForModule(assets, request.GET.get('module', None), system)
         addUrlForDeviceType(assets, request.GET.get('deviceType', None), system)
         addUrlForSoftware(assets, request.GET.get('software', None), system)
         response = requests.post(
@@ -243,6 +245,25 @@ def addUrlForDevice(list, id, system):
             else:
                 list.append(entity.get_absolute_url())
         except Device.DoesNotExist:
+            return
+    except ValueError:
+        return
+
+
+def addUrlForModule(list, id, system):
+    if id is None:
+        return
+    try:
+        entityId = int(id)
+        baseUrl = getFromJson(system, ('netboxBaseUrl',), None)
+        query = Module.objects.filter(id = entityId)
+        try:
+            entity = query.get()
+            if baseUrl is not None:
+                list.append(f'{baseUrl}/api/dcim/modules/{entityId}/')
+            else:
+                list.append(entity.get_absolute_url())
+        except Module.DoesNotExist:
             return
     except ValueError:
         return
@@ -423,7 +444,8 @@ def getStatus(request, system, token):
 def getRunningMatchers(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
+
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/task/running"
     try:
@@ -852,7 +874,7 @@ def cleanUrl(url):
 
 # New CsafMatches view for one Device
 @register_model_view(Device, name='newcsafmatchlistfordeviceview', path='csafmatchesnew', )
-class CsafMatchListForDeviceView(CsafMatchListFor):
+class CsafNewMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
     additional_permissions=('csaf.view_csafmatch',)
     queryset = Device.objects.all()
@@ -903,6 +925,64 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
                 device=parent
+            ).filter(
+                acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
+            )
+
+
+# New CsafMatches view for one Module
+@register_model_view(Module, name='newcsafmatchlistformoduleview', path='csafmatchesnew', )
+class CsafNewMatchListForModuleView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a Module. """
+    additional_permissions=('csaf.view_csafmatch',)
+    queryset = Module.objects.all()
+    table = tables.CsafMatchListForModuleTable
+    linkName= 'module'
+
+    tab = ViewTab(
+        label='Potential CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            module=obj,
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
+            .count(),
+        permission='csaf.view_csafmatch'
+    )
+
+    def get_children_for(self, parent):
+        return self.child_model.objects.filter(
+                module=parent
+            ).filter(
+                acceptance_status__in=[
+                    models.CsafMatch.AcceptanceStatus.NEW,
+                    models.CsafMatch.AcceptanceStatus.REOPENED
+                ]
+            )
+
+
+# Confirmed CsafMatches view for one Module
+@register_model_view(Module, name='csafmatchlistformoduleview', path='csafmatches', )
+class CsafMatchListForModuleView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a Module. """
+    additional_permissions=('csaf.view_csafmatch',)
+    queryset = Module.objects.all()
+    table = tables.CsafMatchListForModuleTable
+    linkName= 'module'
+
+    tab = ViewTab(
+        label='CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            module=obj,
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.CONFIRMED])
+            .count(),
+        permission='csaf.view_csafmatch'
+    )
+
+    def get_children_for(self, parent):
+        return self.child_model.objects.filter(
+                module=parent
             ).filter(
                 acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
             )
@@ -1018,6 +1098,46 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.DevicesWithMatchTable
+
+
+@register_model_view(Module, name='withmatches', path='withmatches', detail=False)
+class ModuleListWithCsafMatches(generic.ObjectListView):
+    """ This view handles the request for displaying Modules with CsafMatches as a table. """
+    queryset = Module.objects.annotate(
+            new_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'module': OuterRef('pk')})
+                    .filter(acceptance_status__in=[
+                        models.CsafMatch.AcceptanceStatus.NEW,
+                        models.CsafMatch.AcceptanceStatus.REOPENED])
+                    .values('module')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            confirmed_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'module': OuterRef('pk')})
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
+                    .values('module')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            resolved_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'module': OuterRef('pk')})
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)
+                    .values('module')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).annotate(
+            total_count=Subquery(
+                models.CsafMatch.objects
+                    .filter(**{'module': OuterRef('pk')})
+                    .values('module')
+                    .annotate(c=Count('*'))
+                    .values('c'))
+        ).filter(total_count__gt=0)
+    table = tables.ModulesWithMatchTable
 
 
 @register_model_view(Software, name='withmatches', path='withmatches', detail=False)

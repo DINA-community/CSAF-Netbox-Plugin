@@ -20,7 +20,7 @@ class CsafMatchSerializer(NetBoxModelSerializer):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class CsafVulnerabilitySerializer(NetBoxModelSerializer):

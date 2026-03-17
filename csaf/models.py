@@ -82,6 +82,13 @@ class CsafMatch(NetBoxModel):
         blank=True,
         null=True
     )
+    module = models.ForeignKey(
+        to='dcim.Module',
+        on_delete=models.CASCADE,
+        related_name='csaf_matches',
+        blank=True,
+        null=True
+    )
     csaf_document = models.ForeignKey(
         to='csaf.CsafDocument',
         on_delete=models.CASCADE,

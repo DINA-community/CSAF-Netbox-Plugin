@@ -4,7 +4,7 @@
 
 import datetime
 from .models import CsafDocument, CsafMatch, CsafVulnerability
-from dcim.models.devices import Device
+from dcim.models.devices import Device, Module
 from django import forms
 from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelBulkEditForm
 from utilities.forms.fields import DynamicModelMultipleChoiceField
@@ -51,6 +51,11 @@ class CsafMatchFilterForm(NetBoxModelFilterSetForm):
         queryset = Device.objects.all(),
         required = False,
         label = 'Device',
+    )
+    module_id = DynamicModelMultipleChoiceField(
+        queryset = Module.objects.all(),
+        required = False,
+        label = 'Module',
     )
     software_id = DynamicModelMultipleChoiceField(
         queryset = Software.objects.all(),

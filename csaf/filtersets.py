@@ -1,5 +1,5 @@
 import django_filters
-from dcim.models.devices import Device
+from dcim.models.devices import Device, Module
 from django import forms
 from django_filters import NumberFilter
 from django.db.models import Q
@@ -44,11 +44,16 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device_id', 'software_id', 'csaf_document_id', 'acceptance_status', 'remediation_status')
+        fields = ('id', 'device_id', 'module_id', 'software_id', 'csaf_document_id', 'acceptance_status', 'remediation_status')
 
     device_id = django_filters.ModelMultipleChoiceFilter(
         queryset = Device.objects.all(),
         label = 'Devices',
+    )
+
+    module_id = django_filters.ModelMultipleChoiceFilter(
+        queryset = Module.objects.all(),
+        label = 'Modules',
     )
 
     software_id = django_filters.ModelMultipleChoiceFilter(
@@ -86,7 +91,8 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
             Q(description__icontains=value) |
             Q(csaf_document__title__icontains=value) |
             Q(software__name__icontains=value) |
-            Q(device__name__icontains=value)
+            Q(device__name__icontains=value) |
+            Q(module__name__icontains=value)
         )
 
 
