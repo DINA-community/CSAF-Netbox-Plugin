@@ -111,12 +111,17 @@ def fetchLoadingDocuments():
             code = getFromJson(jsonDoc, ('code',), 200)
             if code == 404:
                 doc.title = TITLE_NOT_FOUND
+                doc.product_tree = None
                 models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             else:
                 doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
                 doc.title = truncate(1000, getFromJson(jsonDoc, ('document','title'), 'No Title'))
                 doc.version = truncate(50, getFromJson(jsonDoc, ('document','tracking', 'version'), None))
                 doc.publisher = truncate(100, getFromJson(jsonDoc, ('document','publisher', 'name'), None))
+                product_tree = getFromJson(jsonDoc, ('product_tree',), None)
+                if product_tree is None:
+                    product_tree = getFromJson(jsonDoc, ('document', 'product_tree'), None)
+                doc.product_tree = product_tree
                 syncVulnerabilitiesForDocument(doc, jsonDoc)
             print(f"Loaded: {doc.title}")
             doc.save()
@@ -124,6 +129,7 @@ def fetchLoadingDocuments():
             print("Failed to fetch document")
             print(ex)
             doc.title = TITLE_FAILED
+            doc.product_tree = None
             models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             if not doc.version or int(doc.version) != doc.version:
                 doc.version = 1
@@ -133,6 +139,7 @@ def fetchLoadingDocuments():
         except Exception as e:
             print(e)
             doc.title = TITLE_FAILED
+            doc.product_tree = None
             models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             if not doc.version or int(doc.version) != doc.version:
                 doc.version = 1

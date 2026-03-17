@@ -35,6 +35,10 @@ class CsafDocument(NetBoxModel):
         blank=True,
         null=True
     )
+    product_tree = models.JSONField(
+        blank=True,
+        null=True
+    )
 
     class Meta:
         ordering = ['id']
