@@ -48,7 +48,7 @@ class CsafDocumentTable(NetBoxTable):
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
 
 
 class CsafMatchListForDeviceTable(NetBoxTable):
@@ -73,7 +73,7 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -125,7 +125,7 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -155,7 +155,7 @@ class CsafMatchTable(NetBoxTable):
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
