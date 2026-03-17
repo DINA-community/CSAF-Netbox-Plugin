@@ -3,7 +3,7 @@
 """
 
 import datetime
-from .models import CsafDocument, CsafMatch
+from .models import CsafDocument, CsafMatch, CsafVulnerability
 from dcim.models.devices import Device
 from django import forms
 from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelBulkEditForm
@@ -83,3 +83,28 @@ class CsafMatchBulkEditForm(NetBoxModelBulkEditForm):
         choices=CsafMatch.RemediationStatus,
         required=False
     )
+
+
+class CsafVulnerabilityForm(NetBoxModelForm):
+    """
+    Input Form for the CsafVulnerability model.
+    """
+    class Meta:
+        model = CsafVulnerability
+        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score')
+
+
+class CsafVulnerabilityFilterForm(NetBoxModelFilterSetForm):
+    """
+    Input Form for filtering CsafVulnerability objects.
+    """
+    model = CsafVulnerability
+    csaf_document_id = DynamicModelMultipleChoiceField(
+        queryset=CsafDocument.objects.all(),
+        required=False,
+        label='CSAF Document',
+    )
+    vulnerability_id = forms.CharField(required=False)
+    cve = forms.CharField(required=False)
+    title = forms.CharField(required=False)
+    cwe = forms.CharField(required=False)

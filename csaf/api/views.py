@@ -2,7 +2,7 @@
     These classes are needed for bulk update and delete operations.
 """
 from .. import filtersets, models
-from .serializers import CsafDocumentSerializer, CsafMatchSerializer
+from .serializers import CsafDocumentSerializer, CsafMatchSerializer, CsafVulnerabilitySerializer
 from core.choices import JobIntervalChoices
 from datetime import timedelta
 from django.conf import settings
@@ -111,17 +111,20 @@ def fetchLoadingDocuments():
             code = getFromJson(jsonDoc, ('code',), 200)
             if code == 404:
                 doc.title = TITLE_NOT_FOUND
+                models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             else:
                 doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
                 doc.title = truncate(1000, getFromJson(jsonDoc, ('document','title'), 'No Title'))
                 doc.version = truncate(50, getFromJson(jsonDoc, ('document','tracking', 'version'), None))
                 doc.publisher = truncate(100, getFromJson(jsonDoc, ('document','publisher', 'name'), None))
+                syncVulnerabilitiesForDocument(doc, jsonDoc)
             print(f"Loaded: {doc.title}")
             doc.save()
         except requests.exceptions.RequestException as ex:
             print("Failed to fetch document")
             print(ex)
             doc.title = TITLE_FAILED
+            models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             if not doc.version or int(doc.version) != doc.version:
                 doc.version = 1
             else:
@@ -130,11 +133,71 @@ def fetchLoadingDocuments():
         except Exception as e:
             print(e)
             doc.title = TITLE_FAILED
+            models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             if not doc.version or int(doc.version) != doc.version:
                 doc.version = 1
             else:
                 doc.version = int(doc.version) + 1
             doc.save()
+
+
+def getBaseScore(vulnerability):
+    scores = getFromJson(vulnerability, ('scores',), [])
+    if not isinstance(scores, list):
+        return None
+
+    best = None
+    for score in scores:
+        base_score = getFromJson(score, ('cvss_v3', 'baseScore'), None)
+        try:
+            base_score = float(base_score)
+        except (TypeError, ValueError):
+            continue
+        if best is None or base_score > best:
+            best = base_score
+    return best
+
+
+def getSummary(vulnerability):
+    notes = getFromJson(vulnerability, ('notes',), [])
+    if not isinstance(notes, list):
+        return None
+
+    for note in notes:
+        text = getFromJson(note, ('text',), None)
+        if text:
+            return truncate(10000, text)
+    return None
+
+
+def syncVulnerabilitiesForDocument(doc, jsonDoc):
+    vulnerabilities = getFromJson(jsonDoc, ('vulnerabilities',), [])
+    if not isinstance(vulnerabilities, list):
+        vulnerabilities = []
+
+    kept_ordinals = []
+    for index, vulnerability in enumerate(vulnerabilities):
+        ordinal = index + 1
+        vulnerability_id = getFromJson(vulnerability, ('cve',), None)
+        vulnerability_id = vulnerability_id or getFromJson(vulnerability, ('id',), None)
+        vulnerability_id = vulnerability_id or f'vuln-{ordinal}'
+
+        data = {
+            'vulnerability_id': truncate(255, str(vulnerability_id)),
+            'cve': truncate(100, getFromJson(vulnerability, ('cve',), None)),
+            'title': truncate(1000, getFromJson(vulnerability, ('title',), None)),
+            'summary': getSummary(vulnerability),
+            'cwe': truncate(255, getFromJson(vulnerability, ('cwe', 'id'), None)),
+            'cvss_base_score': getBaseScore(vulnerability),
+        }
+        models.CsafVulnerability.objects.update_or_create(
+            csaf_document=doc,
+            ordinal=ordinal,
+            defaults=data,
+        )
+        kept_ordinals.append(ordinal)
+
+    models.CsafVulnerability.objects.filter(csaf_document=doc).exclude(ordinal__in=kept_ordinals).delete()
 
 
 def getFromJson(document, path, dflt):
@@ -252,3 +315,12 @@ def createMatchForData(data):
             entity = query.get()
 
     return CsafMatchSerializer(entity).data.get('id')
+
+
+class CsafVulnerabilityViewSet(NetBoxModelViewSet):
+    """
+    ViewSet for CsafVulnerability.
+    """
+    queryset = models.CsafVulnerability.objects.all()
+    serializer_class = CsafVulnerabilitySerializer
+    filterset_class = filtersets.CsafVulnerabilityFilterSet

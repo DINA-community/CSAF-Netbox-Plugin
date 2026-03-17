@@ -118,3 +118,55 @@ class CsafMatch(NetBoxModel):
     @property
     def docs_url(self):
         return None
+
+
+class CsafVulnerability(NetBoxModel):
+    """
+    A CsafVulnerability instance represents one vulnerability entry of a CSAF document.
+    """
+    csaf_document = models.ForeignKey(
+        to='csaf.CsafDocument',
+        on_delete=models.CASCADE,
+        related_name='vulnerabilities',
+    )
+    ordinal = models.PositiveIntegerField()
+    vulnerability_id = models.CharField(
+        max_length=255,
+        blank=False,
+        null=False,
+    )
+    cve = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+    title = models.CharField(
+        max_length=1000,
+        blank=True,
+        null=True,
+    )
+    summary = models.TextField(
+        blank=True,
+        null=True,
+    )
+    cwe = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    cvss_base_score = models.FloatField(
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['csaf_document', 'ordinal'],
+                name='csafvulnerability_unique_ordinal_per_doc',
+            )
+        ]
+
+    def __str__(self):
+        return self.vulnerability_id

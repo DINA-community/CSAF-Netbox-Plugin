@@ -7,6 +7,6 @@ router = NetBoxRouter()
 router.register('csafdocument-list', views.CsafDocumentViewSet)
 router.register('csafdocforurl', views.CsafDocumentForUrlView, basename = "docforurl")
 router.register('csafmatch-list', views.CsafMatchViewSet)
+router.register('csafvulnerability-list', views.CsafVulnerabilityViewSet)
 
 urlpatterns = router.urls
-

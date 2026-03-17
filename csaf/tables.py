@@ -7,7 +7,7 @@ from dcim.tables.devices import DeviceTable
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable
-from .models import (CsafDocument, CsafMatch)
+from .models import (CsafDocument, CsafMatch, CsafVulnerability)
 from d3c.models import Software
 from d3c.tables import SoftwareTable
 
@@ -226,3 +226,16 @@ class SoftwareWithMatchTable(SoftwareTable):
                   'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
         default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
 
+
+class CsafVulnerabilityTable(NetBoxTable):
+    """
+        Table for the CsafVulnerability model.
+    """
+    csaf_document = tables.Column(
+        linkify=True
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = CsafVulnerability
+        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
+        default_columns = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')

@@ -6,7 +6,7 @@ from django.db.models import Q
 from netbox.filtersets import NetBoxModelFilterSet
 from utilities.filters import MultiValueCharFilter
 from d3c.models import Software
-from .models import CsafDocument, CsafMatch
+from .models import CsafDocument, CsafMatch, CsafVulnerability
 
 
 class CsafDocumentFilterSet(NetBoxModelFilterSet):
@@ -89,3 +89,41 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
             Q(device__name__icontains=value)
         )
 
+
+class CsafVulnerabilityFilterSet(NetBoxModelFilterSet):
+    """
+    Definition of the Filterset for CsafVulnerability.
+    """
+    class Meta:
+        model = CsafVulnerability
+        fields = ('id', 'csaf_document_id', 'vulnerability_id', 'cve', 'title', 'cwe')
+
+    csaf_document_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=CsafDocument.objects.all(),
+        label='Documents',
+    )
+
+    vulnerability_id = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    cve = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    title = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+    cwe = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
+
+    def search(self, queryset, status, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(vulnerability_id__icontains=value) |
+            Q(cve__icontains=value) |
+            Q(title__icontains=value) |
+            Q(summary__icontains=value) |
+            Q(cwe__icontains=value) |
+            Q(csaf_document__title__icontains=value)
+        )

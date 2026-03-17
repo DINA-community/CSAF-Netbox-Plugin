@@ -598,6 +598,48 @@ class CsafMatchBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafMatchTable
 
 
+@register_model_view(models.CsafVulnerability)
+class CsafVulnerabilityView(generic.ObjectView):
+    """ This view handles the request for displaying a CsafVulnerability. """
+    queryset = models.CsafVulnerability.objects.all()
+
+
+@register_model_view(models.CsafVulnerability, name='list', path='', detail=False)
+class CsafVulnerabilityListView(generic.ObjectListView):
+    """ This view handles the request for displaying multiple CsafVulnerabilities as a table. """
+    queryset = models.CsafVulnerability.objects.all()
+    table = tables.CsafVulnerabilityTable
+    filterset = filtersets.CsafVulnerabilityFilterSet
+    filterset_form = forms.CsafVulnerabilityFilterForm
+    actions = {
+        'add': {'add'},
+        'bulk_edit': {'change'},
+        'bulk_delete': {'delete'},
+    }
+
+
+@register_model_view(models.CsafVulnerability, name='add', detail=False)
+@register_model_view(models.CsafVulnerability, name='edit')
+class CsafVulnerabilityEditView(generic.ObjectEditView):
+    """ This view handles the edit requests for the CsafVulnerability model. """
+    queryset = models.CsafVulnerability.objects.all()
+    form = forms.CsafVulnerabilityForm
+
+
+@register_model_view(models.CsafVulnerability, name='delete')
+class CsafVulnerabilityDeleteView(generic.ObjectDeleteView):
+    """ This view handles the delete requests for the CsafVulnerability model. """
+    queryset = models.CsafVulnerability.objects.all()
+
+
+@register_model_view(models.CsafVulnerability, 'bulk_delete', path='delete', detail=False)
+class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
+    """ This view handles the bulk delete requests for the CsafVulnerability model. """
+    queryset = models.CsafVulnerability.objects.all()
+    filterset = filtersets.CsafVulnerabilityFilterSet
+    table = tables.CsafVulnerabilityTable
+
+
 # CsafMatches view for all Matches
 @register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
@@ -981,4 +1023,3 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.SoftwareWithMatchTable
-
