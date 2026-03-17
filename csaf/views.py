@@ -4,7 +4,7 @@ from django.conf import settings
 import requests
 import time
 from csaf.api.views import getFromJson
-from dcim.models import Device
+from dcim.models import Device, DeviceType
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, OuterRef, Subquery, QuerySet
@@ -170,6 +170,7 @@ def triggerMatcher(request, system, token):
         csaf_documents = []
         addUrlForDocument(csaf_documents, request.GET.get('document', None))
         addUrlForDevice(assets, request.GET.get('device', None), system)
+        addUrlForDeviceType(assets, request.GET.get('deviceType', None), system)
         addUrlForSoftware(assets, request.GET.get('software', None), system)
         response = requests.post(
             startUrl,
@@ -209,21 +210,38 @@ def addUrlForSoftware(list, id, system):
         return
 
 
+def addUrlForDeviceType(list, id, system):
+    if id is None:
+        return
+    try:
+        entityId = int(id)
+        baseUrl = getFromJson(system, ('netboxBaseUrl',), None)
+        query = Device.objects.filter(device_type = entityId)
+        try:
+            for entity in query:
+                if baseUrl is not None:
+                    list.append(f'{baseUrl}/api/dcim/devices/{entity.id}/')
+                else:
+                    list.append(entity.get_absolute_url())
+        except Device.DoesNotExist:
+            return
+    except ValueError:
+        return
+    
+
 def addUrlForDevice(list, id, system):
     if id is None:
         return
     try:
         entityId = int(id)
         baseUrl = getFromJson(system, ('netboxBaseUrl',), None)
-        if baseUrl is not None:
-            devUrl = f'{baseUrl}/api/dcim/devices/{entityId}/'
-            list.append(devUrl)
-            return
-
         query = Device.objects.filter(id = entityId)
         try:
             entity = query.get()
-            list.append(entity.get_absolute_url())
+            if baseUrl is not None:
+                list.append(f'{baseUrl}/api/dcim/devices/{entityId}/')
+            else:
+                list.append(entity.get_absolute_url())
         except Device.DoesNotExist:
             return
     except ValueError:
@@ -490,7 +508,9 @@ class CsafDocumentListView(generic.ObjectListView):
             new_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'csaf_document': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.NEW)
+                    .filter(acceptance_status__in=[
+                        models.CsafMatch.AcceptanceStatus.NEW,
+                        models.CsafMatch.AcceptanceStatus.REOPENED])
                     .values('csaf_document')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -498,15 +518,7 @@ class CsafDocumentListView(generic.ObjectListView):
             confirmed_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'csaf_document': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.CONFIRMED)
-                    .values('csaf_document')
-                    .annotate(c=Count('*'))
-                    .values('c'))
-        ).annotate(
-            reopened_count=Subquery(
-                models.CsafMatch.objects
-                    .filter(**{'csaf_document': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
                     .values('csaf_document')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -514,9 +526,7 @@ class CsafDocumentListView(generic.ObjectListView):
             resolved_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'csaf_document': OuterRef('pk')})
-                    .filter(status__in=[
-                        models.CsafMatch.Status.FALSE_POSITIVE,
-                        models.CsafMatch.Status.RESOLVED])
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)
                     .values('csaf_document')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -605,10 +615,10 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         'bulk_delete': {'delete'},
     }
     def get(self, request, *args, **kwargs):
-        statusString, status, statusSearch = handleStatus(request)
+        statusString, acceptance_status, statusSearch = handleStatus(request)
         if self.filterset:
             self.queryset = self.filterset(request.GET, self.queryset, request=request).qs
-        childObjects = self.queryset.filter(status__in=statusSearch)
+        childObjects = self.queryset.filter(acceptance_status__in=statusSearch)
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.model)
@@ -631,8 +641,9 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             'table_config': f'{table.name}_config',
             'table_configs': get_table_configs(table, request.user),
             'actions': actions,
-            'status': status,
+            'acceptance_status': acceptance_status,
             'statusString': statusString,
+            'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
             'return_url': return_url,
             'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             **self.get_extra_context(request),
@@ -646,21 +657,39 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
-        targetStatus = request.POST.get('targetStatus', "")
-        if targetStatus not in ['N', 'O', 'C', 'R', 'F']:
-            messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
-            return self.get(request, args, kwargs)
+        targetAccStatus = request.POST.get('targetAccStatus', "")
+        if targetAccStatus:
+            if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
+                messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
+                return self.get(request, args, kwargs)
 
-        selected_objects = self.queryset.filter(
-            pk__in=request.POST.getlist('pk'),
-        )
-        with transaction.atomic():
-            count = 0
-            for csafMatch in selected_objects:
-                csafMatch.status = targetStatus
-                csafMatch.save()
-                count += 1
-        messages.success(request, f"Updated {count} CSAF-Matches")
+            selected_objects = self.queryset.filter(
+                pk__in=request.POST.getlist('pk'),
+            )
+            with transaction.atomic():
+                count = 0
+                for csafMatch in selected_objects:
+                    csafMatch.acceptance_status = targetAccStatus
+                    csafMatch.save()
+                    count += 1
+            messages.success(request, f"Updated {count} CSAF-Matches")
+
+        targetRemStatus = request.POST.get('targetRemStatus', "")
+        if targetRemStatus:
+            if targetRemStatus not in models.CsafMatch.RemediationStatus:
+                messages.error(request, f"Unknown CSAF-Match RemediationStatus: {targetRemStatus}.")
+                return self.get(request, args, kwargs)
+
+            selected_objects = self.queryset.filter(
+                pk__in=request.POST.getlist('pk'),
+            )
+            with transaction.atomic():
+                count = 0
+                for csafMatch in selected_objects:
+                    csafMatch.remediation_status = targetRemStatus
+                    csafMatch.save()
+                    count += 1
+            messages.success(request, f"Updated {count} CSAF-Matches")
         return redirect(self.get_return_url(request))
 
 
@@ -683,28 +712,46 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
-        targetStatus = request.POST.get('targetStatus', "")
-        if targetStatus not in ['N', 'O', 'C', 'R', 'F']:
-            messages.error(request, f"Unknown CSAF-Match status: {targetStatus}.")
-            return redirect(self.get_return_url(request))
+        targetAccStatus = request.POST.get('targetAccStatus', "")
+        if targetAccStatus:
+            if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
+                messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
+                return redirect(self.get_return_url(request))
 
-        selected_objects = self.get_children_for(instance).filter(
-            pk__in=request.POST.getlist('pk'),
-        )
-        with transaction.atomic():
-            count = 0
-            for csafMatch in selected_objects:
-                csafMatch.status = targetStatus
-                csafMatch.save()
-                count += 1
-        messages.success(request, f"Updated {count} CSAF-Matches")
+            selected_objects = self.get_children_for(instance).filter(
+                pk__in=request.POST.getlist('pk'),
+            )
+            with transaction.atomic():
+                count = 0
+                for csafMatch in selected_objects:
+                    csafMatch.acceptance_status = targetAccStatus
+                    csafMatch.save()
+                    count += 1
+            messages.success(request, f"Updated {count} CSAF-Matches")
+
+        targetRemStatus = request.POST.get('targetRemStatus', "")
+        if targetRemStatus:
+            if targetRemStatus not in models.CsafMatch.RemediationStatus:
+                messages.error(request, f"Unknown CSAF-Match RemediationStatus: {targetRemStatus}.")
+                return redirect(self.get_return_url(request))
+
+            selected_objects = self.get_children_for(instance).filter(
+                pk__in=request.POST.getlist('pk'),
+            )
+            with transaction.atomic():
+                count = 0
+                for csafMatch in selected_objects:
+                    csafMatch.remediation_status = targetRemStatus
+                    csafMatch.save()
+                    count += 1
+            messages.success(request, f"Updated {count} CSAF-Matches")
         return redirect(self.get_return_url(request))
 
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object(**kwargs)
-        statusString, status, statusSearch = handleStatus(request)
-        childObjects = self.get_children_for(instance).filter(status__in=statusSearch)
+        statusString, acceptance_status, statusSearch = handleStatus(request)
+        childObjects = self.get_children_for(instance).filter(acceptance_status__in=statusSearch)
         if self.filterset:
             childObjects = self.filterset(request.GET, childObjects, request=request).qs
 
@@ -735,8 +782,9 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             'table_configs': get_table_configs(table, request.user),
             'actions': actions,
             'tab': self.tab,
-            'status': status,
+            'acceptance_status': acceptance_status,
             'statusString': statusString,
+            'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
             'return_url': return_url,
             **self.get_extra_context(request, instance),
         })
@@ -771,10 +819,10 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             device=obj,
-            status__in=[
-                models.CsafMatch.Status.NEW,
-                models.CsafMatch.Status.CONFIRMED,
-                models.CsafMatch.Status.REOPENED])
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.CONFIRMED,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -796,10 +844,10 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             csaf_document=obj,
-            status__in=[
-                models.CsafMatch.Status.NEW,
-                models.CsafMatch.Status.CONFIRMED,
-                models.CsafMatch.Status.REOPENED])
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.CONFIRMED,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -822,10 +870,10 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             software=obj,
-            status__in=[
-                models.CsafMatch.Status.NEW,
-                models.CsafMatch.Status.CONFIRMED,
-                models.CsafMatch.Status.REOPENED])
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.CONFIRMED,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -834,19 +882,20 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
         return self.child_model.objects.filter(software=parent)
 
 
-def handleStatus(request):
-    statusString = request.GET.get('statusString', '11001')
+def handleStatus(request, enumCls=models.CsafMatch.AcceptanceStatus, deflt='1110'):
     status = {
-        'N': int(statusString[0]),
-        'C': int(statusString[1]),
-        'R': int(statusString[2]),
-        'F': int(statusString[3]),
-        'O': int(statusString[4]),
     }
+    idx = 0;
+    statusString = request.GET.get('statusString', deflt)
+    for entry in enumCls:
+        status[str(entry)] = int(statusString[idx])
+        idx += 1
     toggle = request.GET.get('toggle', "")
-    if toggle in ['N', 'C', 'R', 'F', 'O']:
+    if toggle in status:
         status[toggle] = 1 - int(status[toggle])
-    statusString = "" + str(status['N']) + str(status['C']) + str(status['R']) + str(status['F']) + str(status['O'])
+    statusString = ""
+    for entry in enumCls:
+        statusString += str(status[str(entry)])
     statusSearch={0}
     for s,v in status.items():
         if v:
@@ -861,7 +910,9 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
             new_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'device': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.NEW)
+                    .filter(acceptance_status__in=[
+                        models.CsafMatch.AcceptanceStatus.NEW,
+                        models.CsafMatch.AcceptanceStatus.REOPENED])
                     .values('device')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -869,15 +920,7 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
             confirmed_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'device': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.CONFIRMED)
-                    .values('device')
-                    .annotate(c=Count('*'))
-                    .values('c'))
-        ).annotate(
-            reopened_count=Subquery(
-                models.CsafMatch.objects
-                    .filter(**{'device': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
                     .values('device')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -885,9 +928,7 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
             resolved_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'device': OuterRef('pk')})
-                    .filter(status__in=[
-                        models.CsafMatch.Status.FALSE_POSITIVE,
-                        models.CsafMatch.Status.RESOLVED])
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)
                     .values('device')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -909,7 +950,9 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
             new_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'software': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.NEW)
+                    .filter(acceptance_status__in=[
+                        models.CsafMatch.AcceptanceStatus.NEW,
+                        models.CsafMatch.AcceptanceStatus.REOPENED])
                     .values('software')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -917,15 +960,7 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
             confirmed_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'software': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.CONFIRMED)
-                    .values('software')
-                    .annotate(c=Count('*'))
-                    .values('c'))
-        ).annotate(
-            reopened_count=Subquery(
-                models.CsafMatch.objects
-                    .filter(**{'software': OuterRef('pk')})
-                    .filter(status=models.CsafMatch.Status.REOPENED)
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
                     .values('software')
                     .annotate(c=Count('*'))
                     .values('c'))
@@ -933,9 +968,7 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
             resolved_count=Subquery(
                 models.CsafMatch.objects
                     .filter(**{'software': OuterRef('pk')})
-                    .filter(status__in=[
-                        models.CsafMatch.Status.FALSE_POSITIVE,
-                        models.CsafMatch.Status.RESOLVED])
+                    .filter(acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)
                     .values('software')
                     .annotate(c=Count('*'))
                     .values('c'))

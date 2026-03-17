@@ -44,7 +44,7 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device_id', 'software_id', 'csaf_document_id', 'status')
+        fields = ('id', 'device_id', 'software_id', 'csaf_document_id', 'acceptance_status', 'remediation_status')
 
     device_id = django_filters.ModelMultipleChoiceFilter(
         queryset = Device.objects.all(),
@@ -69,8 +69,13 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
         lookup_expr='lte',
     )
 
-    status = django_filters.MultipleChoiceFilter(
-        choices=CsafMatch.Status,
+    acceptance_status = django_filters.MultipleChoiceFilter(
+        choices=CsafMatch.AcceptanceStatus,
+        null_value=None
+    )
+
+    remediation_status = django_filters.MultipleChoiceFilter(
+        choices=CsafMatch.RemediationStatus,
         null_value=None
     )
 

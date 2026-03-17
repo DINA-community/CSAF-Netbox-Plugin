@@ -39,7 +39,7 @@ class CsafMatchForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class CsafMatchFilterForm(NetBoxModelFilterSetForm):
@@ -75,7 +75,11 @@ class CsafMatchFilterForm(NetBoxModelFilterSetForm):
 
 class CsafMatchBulkEditForm(NetBoxModelBulkEditForm):
     model = CsafMatch
-    status = forms.ChoiceField(
-        choices=CsafMatch.Status,
+    acceptance_status = forms.ChoiceField(
+        choices=CsafMatch.AcceptanceStatus,
+        required=False
+    )
+    remediation_status = forms.ChoiceField(
+        choices=CsafMatch.RemediationStatus,
         required=False
     )

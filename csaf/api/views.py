@@ -234,8 +234,8 @@ def createMatchForData(data):
             entity.description += description
             entity.description += f'\nScore increased from {entity.score} to {score}'
             entity.score = score
-            if entity.status == models.CsafMatch.Status.FALSE_POSITIVE:
-                entity.status = models.CsafMatch.Status.REOPENED
+            if entity.acceptance_status == models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE:
+                entity.acceptance_status = models.CsafMatch.AcceptanceStatus.REOPENED
                 entity.description += f'\nReopened'
             entity.save()
     except models.CsafMatch.DoesNotExist:

@@ -52,12 +52,16 @@ class CsafMatch(NetBoxModel):
     """
     A CsafMatch instance links a CSAF advisory to an asset.
     """
-    class Status(models.TextChoices):
+    class AcceptanceStatus(models.TextChoices):
         NEW = "N", "New"
-        CONFIRMED = "C", "Confirmed"
         REOPENED = "O", "Reopened"
-        RESOLVED = "R", "Resolved"
+        CONFIRMED = "C", "Confirmed"
         FALSE_POSITIVE = "F", "False Positive"
+
+    class RemediationStatus(models.TextChoices):
+        NEW = "1", "Not Started"
+        IN_PROGRESS = "2", "In Progress"
+        RESOLVED = "3", "Complete"
 
 
     device = models.ForeignKey(
@@ -86,10 +90,15 @@ class CsafMatch(NetBoxModel):
     )
     score = models.FloatField(default=0.0)
     time = models.DateTimeField(default=timezone.now)
-    status = models.CharField(
+    acceptance_status = models.CharField(
         max_length=1,
-        choices=Status,
-        default=Status.NEW,
+        choices=AcceptanceStatus,
+        default=AcceptanceStatus.NEW,
+    )
+    remediation_status = models.CharField(
+        max_length=1,
+        choices=RemediationStatus,
+        default=RemediationStatus.NEW,
     )
     description = models.TextField(
         blank=True,

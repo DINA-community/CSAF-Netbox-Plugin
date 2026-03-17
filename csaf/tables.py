@@ -77,8 +77,8 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
@@ -99,8 +99,8 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'software', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'software', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -129,8 +129,8 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class CsafMatchTable(NetBoxTable):
@@ -159,8 +159,8 @@ class CsafMatchTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'device', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
 
 class DevicesWithMatchTable(DeviceTable):

@@ -25,11 +25,10 @@
 
     <div class="row mb-3">
       <div class="col-auto table-controls noprint">
-        <a class="btn {% if status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
-        <a class="btn {% if status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
-        <a class="btn {% if status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
-        <a class="btn {% if status.R %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=R">Resolved</a>
-        <a class="btn {% if status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
+        <a class="btn {% if acceptance_status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
+        <a class="btn {% if acceptance_status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
+        <a class="btn {% if acceptance_status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        <a class="btn {% if acceptance_status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
       <div class="col-auto table-controls noprint">
@@ -83,34 +82,30 @@
         {% block bulk_buttons %}
             <div class="dropdown">
               <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Bulk Set Status" %}
+                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Bulk Set Acceptance Status" %}
               </button>
               <ul class="dropdown-menu">
+                {% for entry in enums.acceptance %}
                   <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="N">
-                    {% trans "New" %}
+                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetAccStatus" value="{{entry.value}}">
+                    {% trans entry.label %}
                     </button>
                   </li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="dropdown">
+              <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Bulk Set Remediation Status" %}
+              </button>
+              <ul class="dropdown-menu">
+                {% for entry in enums.remediation %}
                   <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="O">
-                      {% trans "Reopened" %}
+                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetRemStatus" value="{{entry.value}}">
+                    {% trans entry.label %}
                     </button>
                   </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="C">
-                      {% trans "Confirmed" %}
-                    </button>
-                  </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="R">
-                      {% trans "Resolved" %}
-                    </button>
-                  </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="F">
-                      {% trans "False Positive" %}
-                    </button>
-                  </li>
+                {% endfor %}
               </ul>
             </div>
           {% if 'bulk_delete' in actions %}
