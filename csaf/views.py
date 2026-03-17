@@ -686,6 +686,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             'acceptance_status': acceptance_status,
             'statusString': statusString,
             'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
+            'statusFilter': True,
             'return_url': return_url,
             'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             **self.get_extra_context(request),
@@ -793,7 +794,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     def get(self, request, *args, **kwargs):
         instance = self.get_object(**kwargs)
         statusString, acceptance_status, statusSearch = handleStatus(request)
-        childObjects = self.get_children_for(instance).filter(acceptance_status__in=statusSearch)
+        childObjects = self.get_children_for(instance) #.filter(acceptance_status__in=statusSearch)
         if self.filterset:
             childObjects = self.filterset(request.GET, childObjects, request=request).qs
 
@@ -848,7 +849,39 @@ def cleanUrl(url):
 
     
 
-# CsafMatches view for one Device
+
+# New CsafMatches view for one Device
+@register_model_view(Device, name='newcsafmatchlistfordeviceview', path='csafmatchesnew', )
+class CsafMatchListForDeviceView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
+    additional_permissions=('csaf.view_csafmatch',)
+    queryset = Device.objects.all()
+    table = tables.CsafMatchListForDeviceTable
+    linkName= 'device'
+
+    tab = ViewTab(
+        label='Potential CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            device=obj,
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
+            .count(),
+        permission='csaf.view_csafmatch'
+    )
+
+    def get_children_for(self, parent):
+        return self.child_model.objects.filter(
+                device=parent
+            ).filter(
+                acceptance_status__in=[
+                    models.CsafMatch.AcceptanceStatus.NEW,
+                    models.CsafMatch.AcceptanceStatus.REOPENED
+                ]
+            )
+
+
+# Confirmed CsafMatches view for one Device
 @register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )
 class CsafMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
@@ -862,15 +895,17 @@ class CsafMatchListForDeviceView(CsafMatchListFor):
         badge=lambda obj: models.CsafMatch.objects.filter(
             device=obj,
             acceptance_status__in=[
-                models.CsafMatch.AcceptanceStatus.NEW,
-                models.CsafMatch.AcceptanceStatus.CONFIRMED,
-                models.CsafMatch.AcceptanceStatus.REOPENED])
+                models.CsafMatch.AcceptanceStatus.CONFIRMED])
             .count(),
         permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):
-        return self.child_model.objects.filter(device=parent)
+        return self.child_model.objects.filter(
+                device=parent
+            ).filter(
+                acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
+            )
 
 
 # CsafMatches view for one Document

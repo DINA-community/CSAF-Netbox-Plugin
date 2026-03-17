@@ -45,8 +45,12 @@
               <td>{{ object.time|placeholder }}</td>
             </tr>
             <tr>
-              <th scope="row">Status</th>
-              <td>{{ object.get_status_display }}</td>
+              <th scope="row">Acceptance Status</th>
+              <td>{{ object.get_acceptance_status_display }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Remediation Status</th>
+              <td>{{ object.get_remediation_status_display }}</td>
             </tr>
             <tr>
               <th scope="row">Description</th>

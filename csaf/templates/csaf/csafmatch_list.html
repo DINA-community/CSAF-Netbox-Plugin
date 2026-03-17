@@ -24,6 +24,7 @@
   <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
 
     <div class="row mb-3">
+      {% if statusFilter %}
       <div class="col-auto table-controls noprint">
         <a class="btn {% if acceptance_status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
         <a class="btn {% if acceptance_status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
@@ -31,6 +32,7 @@
         <a class="btn {% if acceptance_status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
+      {% endif %}
       <div class="col-auto table-controls noprint">
         <div class="input-group input-group-flat me-2 quicksearch" hx-disinherit="hx-select hx-swap">
           <input type="search" results="5" name="q" id="quicksearch" class="form-control" placeholder="{% trans "Quick search" %}"
@@ -71,7 +73,7 @@
         {% endif %}
 
       <input type="hidden" name="statusString" value="{{ statusString }}">
-      <input type="hidden" name="return_url" value="{{ return_url }}">
+      <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
       <div class="col col-md-12">
         <div class="card">
           <div class="htmx-container table-responsive" id="object_list">
