@@ -14,4 +14,5 @@ urlpatterns = (
     path('csafvulnerability/<int:pk>/', include(get_model_urls('csaf', 'csafvulnerability'))),
 
     path('synchronisers/', views.Synchronisers.as_view(), name='synchronisers'),
+    path('configuration/', views.Configuration.as_view(), name='configuration'),
 )

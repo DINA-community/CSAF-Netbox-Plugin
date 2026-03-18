@@ -32,6 +32,63 @@ RIGHT_SYNC_VIEW = "csaf.viewSynchronisers_csafmatch"
 RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
+RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+
+class Configuration(View):
+    """
+    Display the status of configured synchronisers.
+    """
+    def get(self, request):
+        if not request.user.has_perm(RIGHT_CONFIG_VIEW):
+            raise PermissionsViolation(f'User does not have permission {RIGHT_CONFIG_VIEW}')
+        error_help = False
+        systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
+
+        data = []
+        system = systems[2]
+        (token, msg) = getSyncToken(request, system)
+        if msg != OK_LABEL:
+            error_help = True
+        if token is None:
+            return render(request, 'csaf/configuration.html', {
+                'data': data,
+                'error_help': error_help,
+        })
+        config = getConfig(request, system, token)
+        #if config is None:
+            #TODO raise error
+        meta = config["parameter_info"]
+        result: list[dict[str, any]] = []
+    
+        for attr, info in meta.items():
+            value = get_nested(config, attr)
+            required = info.get("required", False)
+            # default = info.get("default", None)
+    
+            result.append(
+                {
+                    "attribute": attr,
+                    "valueType": info["type"],
+                    "value": value,
+                    "status": required,
+                    "description": info["description"],
+                }
+            )
+
+        return render(request, 'csaf/configuration.html', {
+            'data': result,
+            'error_help': error_help,
+        })
+
+def get_nested(config: dict[str, any], dotted: str) -> any:
+    """Liest einen Wert aus dem verschachtelten Dict anhand eines Pfads wie 'Assetsync.Api.port'."""
+    parts = dotted.split(".")
+    cur = config
+    for part in parts:
+        if not isinstance(cur, dict) or part not in cur:
+            return None
+        cur = cur[part]
+    return cur
 
 class Synchronisers(View):
     """
@@ -439,6 +496,25 @@ def getStatus(request, system, token):
         return result
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to fetch status of {name}: {ex}")
+
+def getConfig(request, system, token):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    status_url = f"{baseUrl}/config"
+    try:
+        response = requests.get(
+            status_url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to fetch config of {name}: {response.text}")
+        result = response.json()
+        return result
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to fetch config of {name}: {ex}")
 
 
 def getRunningMatchers(request, system, token):

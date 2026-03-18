@@ -50,6 +50,12 @@ synchronisers = PluginMenuItem(
     permissions=('csaf.viewSynchronisers_csafmatch',),
     buttons=()
 )
+configuration = PluginMenuItem(
+    link='plugins:csaf:configuration',
+    link_text='Configuration',
+    permissions=('csaf.viewConfiguration',),
+    buttons=()
+)
 
 _menu_items_models = (
     csafDocumentItem, csafMatchItem, csafVulnerabilityItem, devicesWithMatches, modulesWithMatches, softwareWithMatches, synchronisers
@@ -59,7 +65,8 @@ _menu_items_models = (
 menu = PluginMenu(
     label="CSAF",
     groups=(
-        ("Models", (csafDocumentItem, csafMatchItem, csafVulnerabilityItem, devicesWithMatches, modulesWithMatches, softwareWithMatches, synchronisers,)),
+        ("Models", (csafDocumentItem, csafMatchItem, csafVulnerabilityItem, devicesWithMatches, modulesWithMatches, softwareWithMatches,)),
+        ("Synchronisers", (synchronisers, configuration,)),
     ),
     icon_class="mdi mdi-gamma",
 )
