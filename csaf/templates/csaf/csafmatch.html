@@ -71,19 +71,37 @@
                 <th>CVE</th>
                 <th>Title</th>
                 <th>CVSS</th>
+                <th>Remediation</th>
               </tr>
             </thead>
             <tbody>
-              {% for vulnerability in object.related_vulnerabilities %}
+              {% for entry in object.related_vulnerability_entries %}
                 <tr>
-                  <td>{{ vulnerability|linkify }}</td>
-                  <td>{{ vulnerability.cve|placeholder }}</td>
-                  <td>{{ vulnerability.title|placeholder }}</td>
-                  <td>{{ vulnerability.cvss_badge }}</td>
+                  <td>{{ entry.vulnerability|linkify }}</td>
+                  <td>{{ entry.vulnerability.cve|placeholder }}</td>
+                  <td>{{ entry.vulnerability.title|placeholder }}</td>
+                  <td>{{ entry.vulnerability.cvss_badge }}</td>
+                  <td>
+                    {% if perms.csaf.edit_csafmatch %}
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="vulnerability_id" value="{{ entry.vulnerability.id }}">
+                        <select name="targetRemStatus" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                          {% for status in object.remediation_status_choices %}
+                            <option value="{{ status.value }}" {% if status.value == entry.status_value %}selected{% endif %}>
+                              {{ status.label }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </form>
+                    {% else %}
+                      {{ entry.status_label }}
+                    {% endif %}
+                  </td>
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="4" class="text-muted">No vulnerabilities found for this match.</td>
+                  <td colspan="5" class="text-muted">No vulnerabilities found for this match.</td>
                 </tr>
               {% endfor %}
             </tbody>

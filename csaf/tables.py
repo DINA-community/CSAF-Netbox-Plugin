@@ -48,6 +48,29 @@ def get_match_asset_type(record):
     return '-'
 
 
+def render_remediation_status_with_progress(record):
+    progress = record.remediation_progress
+    status_label = record.get_remediation_status_display()
+    return format_html(
+        '<div>{}</div>'
+        '<div class="progress mt-1" style="height: 0.5rem;">'
+        '<div class="progress-bar bg-success" role="progressbar" style="width: {}%;" '
+        'aria-valuenow="{}" aria-valuemin="0" aria-valuemax="100"></div>'
+        '<div class="progress-bar bg-warning" role="progressbar" style="width: {}%;" '
+        'aria-valuenow="{}" aria-valuemin="0" aria-valuemax="100"></div>'
+        '</div>'
+        '<small class="text-muted">{}/{} resolved, {} in progress</small>',
+        status_label,
+        progress['resolved_percentage'],
+        progress['resolved_percentage'],
+        progress['in_progress_percentage'],
+        progress['in_progress_percentage'],
+        progress['resolved'],
+        progress['total'],
+        progress['in_progress'],
+    )
+
+
 class CsafDocumentTable(NetBoxTable):
     """
         Table for the CsafDocument model.
@@ -137,6 +160,9 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     def render_type(self, record):
         return get_match_asset_type(record)
 
+    def render_remediation_status(self, record):
+        return render_remediation_status_with_progress(record)
+
 
 class CsafMatchListForModuleTable(NetBoxTable):
     """
@@ -179,6 +205,9 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     def render_type(self, record):
         return get_match_asset_type(record)
+
+    def render_remediation_status(self, record):
+        return render_remediation_status_with_progress(record)
 
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
@@ -223,6 +252,9 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     def render_type(self, record):
         return get_match_asset_type(record)
+
+    def render_remediation_status(self, record):
+        return render_remediation_status_with_progress(record)
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -275,6 +307,9 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     def render_type(self, record):
         return get_match_asset_type(record)
 
+    def render_remediation_status(self, record):
+        return render_remediation_status_with_progress(record)
+
 
 class CsafMatchTable(NetBoxTable):
     """
@@ -325,6 +360,9 @@ class CsafMatchTable(NetBoxTable):
 
     def render_type(self, record):
         return get_match_asset_type(record)
+
+    def render_remediation_status(self, record):
+        return render_remediation_status_with_progress(record)
 
 
 class DevicesWithMatchTable(DeviceTable):

@@ -1,5 +1,5 @@
 from netbox.api.serializers import NetBoxModelSerializer
-from ..models import (CsafDocument, CsafMatch, CsafVulnerability)
+from ..models import (CsafDocument, CsafMatch, CsafVulnerability, CsafMatchVulnerabilityRemediation)
 from drf_spectacular.utils import extend_schema_field
 from utilities.api import get_serializer_for_model
 
@@ -30,3 +30,12 @@ class CsafVulnerabilitySerializer(NetBoxModelSerializer):
     class Meta:
         model = CsafVulnerability
         fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score', 'product_ids')
+
+
+class CsafMatchVulnerabilityRemediationSerializer(NetBoxModelSerializer):
+    """
+    REST API Model Serializer for CsafMatchVulnerabilityRemediation.
+    """
+    class Meta:
+        model = CsafMatchVulnerabilityRemediation
+        fields = ('id', 'match', 'vulnerability', 'remediation_status')

@@ -250,6 +250,8 @@ def syncVulnerabilitiesForDocument(doc, jsonDoc):
         kept_ordinals.append(ordinal)
 
     models.CsafVulnerability.objects.filter(csaf_document=doc).exclude(ordinal__in=kept_ordinals).delete()
+    for match in models.CsafMatch.objects.filter(csaf_document=doc):
+        match.sync_vulnerability_remediations()
 
 
 def getFromJson(document, path, dflt):
@@ -367,6 +369,7 @@ def createMatchForData(data):
             query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, module=module, software=software, product_name_id=product_name_id)
             entity = query.get()
 
+    entity.sync_vulnerability_remediations()
     return CsafMatchSerializer(entity).data.get('id')
 
 

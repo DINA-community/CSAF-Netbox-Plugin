@@ -597,9 +597,35 @@ class CsafMatchView(generic.ObjectView):
     """ This view handles the request for displaying a CsafMatch. """
     queryset = models.CsafMatch.objects.select_related(
         'device',
+        'module',
         'software',
         'csaf_document',
-    ).prefetch_related('csaf_document__vulnerabilities')
+    ).prefetch_related('csaf_document__vulnerabilities', 'vulnerability_statuses__vulnerability')
+
+    def post(self, request, **kwargs):
+        instance = self.get_object(**kwargs)
+        user = request.user
+        if not user.has_perms(('csaf.edit_csafmatch',)):
+            return self.handle_no_permission()
+
+        vulnerability_id = request.POST.get('vulnerability_id')
+        remediation_status = request.POST.get('targetRemStatus')
+        if remediation_status not in models.CsafMatch.RemediationStatus:
+            messages.error(request, f"Unknown remediation status: {remediation_status}")
+            return redirect(request.path)
+
+        try:
+            vulnerability = models.CsafVulnerability.objects.get(
+                pk=vulnerability_id,
+                csaf_document=instance.csaf_document,
+            )
+        except models.CsafVulnerability.DoesNotExist:
+            messages.error(request, "Unknown vulnerability.")
+            return redirect(request.path)
+
+        instance.set_vulnerability_remediation(vulnerability, remediation_status)
+        messages.success(request, "Updated vulnerability remediation status.")
+        return redirect(request.path)
 
 
 @register_model_view(models.CsafMatch, name='add', detail=False)
@@ -677,9 +703,10 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     model = models.CsafMatch
     queryset = models.CsafMatch.objects.select_related(
         'device',
+        'module',
         'software',
         'csaf_document',
-    ).prefetch_related('csaf_document__vulnerabilities')
+    ).prefetch_related('csaf_document__vulnerabilities', 'vulnerability_statuses')
     filterset = filtersets.CsafMatchFilterSet
     filterset_form = forms.CsafMatchFilterForm
     table = tables.CsafMatchTable
@@ -763,8 +790,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             with transaction.atomic():
                 count = 0
                 for csafMatch in selected_objects:
-                    csafMatch.remediation_status = targetRemStatus
-                    csafMatch.save()
+                    csafMatch.set_all_vulnerability_remediations(targetRemStatus)
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
         return redirect(self.get_return_url(request))
@@ -783,7 +809,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             'module',
             'software',
             'csaf_document',
-        ).prefetch_related('csaf_document__vulnerabilities')
+        ).prefetch_related('csaf_document__vulnerabilities', 'vulnerability_statuses')
 
     def post(self, request, *args, **kwargs):
         logger = logging.getLogger('csaf.views.CsafMatchListFor')
@@ -823,8 +849,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             with transaction.atomic():
                 count = 0
                 for csafMatch in selected_objects:
-                    csafMatch.remediation_status = targetRemStatus
-                    csafMatch.save()
+                    csafMatch.set_all_vulnerability_remediations(targetRemStatus)
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
         return redirect(self.get_return_url(request))
