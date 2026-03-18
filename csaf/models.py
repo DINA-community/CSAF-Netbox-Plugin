@@ -154,6 +154,16 @@ class CsafMatch(NetBoxModel):
             return self.software
         return None
 
+    @property
+    def related_asset_type(self):
+        if self.device is not None:
+            return 'Device'
+        if self.module is not None:
+            return 'Module'
+        if self.software is not None:
+            return 'Software'
+        return '-'
+
 
 class CsafVulnerability(NetBoxModel):
     """

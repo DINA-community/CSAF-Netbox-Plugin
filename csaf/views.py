@@ -780,6 +780,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     def get_children_for(self, parent):
         return self.child_model.objects.select_related(
             'device',
+            'module',
             'software',
             'csaf_document',
         ).prefetch_related('csaf_document__vulnerabilities')
@@ -1028,6 +1029,27 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     def get_children_for(self, parent):
         return self.child_model.objects.filter(csaf_document=parent)
 
+
+
+# CsafVulnerabilities view for one Document
+@register_model_view(model=models.CsafDocument, name='vulnerabilitylistforcsafdocument', path='vulnerabilities', )
+class CsafVulnerabilityListForCsafDocumentView(generic.ObjectChildrenView):
+    """ Handles the request of displaying vulnerabilities associated to a CsafDocument. """
+    additional_permissions = ('csaf.view_csafvulnerability',)
+    queryset = models.CsafDocument.objects.all()
+    child_model = models.CsafVulnerability
+    table = tables.CsafVulnerabilityTable
+    filterset = filtersets.CsafVulnerabilityFilterSet
+    filterset_form = forms.CsafVulnerabilityFilterForm
+
+    tab = ViewTab(
+        label='Vulnerabilities',
+        badge=lambda obj: models.CsafVulnerability.objects.filter(csaf_document=obj).count(),
+        permission='csaf.view_csafvulnerability'
+    )
+
+    def get_children(self, request, parent):
+        return self.child_model.objects.filter(csaf_document=parent)
 
 
 # CsafMatches view for one Software

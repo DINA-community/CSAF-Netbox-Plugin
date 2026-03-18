@@ -28,6 +28,26 @@ def render_vulnerability_links(record):
     return format_html('{} (+{})', rendered, len(vulns) - 5)
 
 
+def get_match_asset(record):
+    if record.device is not None:
+        return record.device
+    if record.module is not None:
+        return record.module
+    if record.software is not None:
+        return record.software
+    return None
+
+
+def get_match_asset_type(record):
+    if record.device is not None:
+        return 'Device'
+    if record.module is not None:
+        return 'Module'
+    if record.software is not None:
+        return 'Software'
+    return '-'
+
+
 class CsafDocumentTable(NetBoxTable):
     """
         Table for the CsafDocument model.
@@ -71,14 +91,15 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     """
         Table for the CsafMatches for a single device
     """
-    device = tables.Column(
-        linkify=True
+    asset = tables.Column(
+        empty_values=(),
+        verbose_name='Asset',
+        orderable=False,
     )
-    module = tables.Column(
-        linkify=True
-    )
-    software = tables.Column(
-        linkify=True
+    type = tables.Column(
+        empty_values=(),
+        verbose_name='Type',
+        orderable=False,
     )
     csaf_document = tables.Column(
         linkify=True
@@ -101,25 +122,35 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_asset(self, record):
+        asset = get_match_asset(record)
+        if asset is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_type(self, record):
+        return get_match_asset_type(record)
 
 
 class CsafMatchListForModuleTable(NetBoxTable):
     """
         Table for the CsafMatches for a single Module
     """
-    device = tables.Column(
-        linkify=True
+    asset = tables.Column(
+        empty_values=(),
+        verbose_name='Asset',
+        orderable=False,
     )
-    module = tables.Column(
-        linkify=True
-    )
-    software = tables.Column(
-        linkify=True
+    type = tables.Column(
+        empty_values=(),
+        verbose_name='Type',
+        orderable=False,
     )
     csaf_document = tables.Column(
         linkify=True
@@ -137,22 +168,32 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+
+    def render_asset(self, record):
+        asset = get_match_asset(record)
+        if asset is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_type(self, record):
+        return get_match_asset_type(record)
 
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
     """
         Table for the CsafMatches for a single CsafDocument
     """
-    device = tables.Column(
-        linkify=True
+    asset = tables.Column(
+        empty_values=(),
+        verbose_name='Asset',
+        orderable=False,
     )
-    module = tables.Column(
-        linkify=True
-    )
-    software = tables.Column(
-        linkify=True
+    type = tables.Column(
+        empty_values=(),
+        verbose_name='Type',
+        orderable=False,
     )
     csaf_document = tables.Column(
         linkify=True
@@ -168,25 +209,35 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'module', 'software', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_asset(self, record):
+        asset = get_match_asset(record)
+        if asset is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_type(self, record):
+        return get_match_asset_type(record)
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
     """
         Table for the CsafMatches for a single Software
     """
-    device = tables.Column(
-        linkify=True
+    asset = tables.Column(
+        empty_values=(),
+        verbose_name='Asset',
+        orderable=False,
     )
-    module = tables.Column(
-        linkify=True
-    )
-    software = tables.Column(
-        linkify=True
+    type = tables.Column(
+        empty_values=(),
+        verbose_name='Type',
+        orderable=False,
     )
     csaf_document = tables.Column(
         linkify=True
@@ -209,25 +260,35 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_asset(self, record):
+        asset = get_match_asset(record)
+        if asset is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_type(self, record):
+        return get_match_asset_type(record)
 
 
 class CsafMatchTable(NetBoxTable):
     """
         Table for the CsafMatch model.
     """
-    device = tables.Column(
-        linkify=True
+    asset = tables.Column(
+        empty_values=(),
+        verbose_name='Asset',
+        orderable=False,
     )
-    module = tables.Column(
-        linkify=True
-    )
-    software = tables.Column(
-        linkify=True
+    type = tables.Column(
+        empty_values=(),
+        verbose_name='Type',
+        orderable=False,
     )
     csaf_document = tables.Column(
         linkify=True
@@ -250,11 +311,20 @@ class CsafMatchTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'device', 'module', 'software', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_asset(self, record):
+        asset = get_match_asset(record)
+        if asset is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_type(self, record):
+        return get_match_asset_type(record)
 
 
 class DevicesWithMatchTable(DeviceTable):
