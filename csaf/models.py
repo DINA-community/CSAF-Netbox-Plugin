@@ -141,6 +141,19 @@ class CsafMatch(NetBoxModel):
             return []
         return [v for v in vulnerabilities if v.matches_product_id(product_id)]
 
+    @property
+    def related_asset(self):
+        """
+        Resolve this match to the associated NetBox asset object.
+        """
+        if self.device is not None:
+            return self.device
+        if self.module is not None:
+            return self.module
+        if self.software is not None:
+            return self.software
+        return None
+
 
 class CsafVulnerability(NetBoxModel):
     """
@@ -201,3 +214,13 @@ class CsafVulnerability(NetBoxModel):
         if not product_id:
             return False
         return product_id in (self.product_ids or [])
+
+    @property
+    def related_matches(self):
+        product_ids = self.product_ids or []
+        if not product_ids:
+            return CsafMatch.objects.none()
+        return CsafMatch.objects.filter(
+            csaf_document=self.csaf_document,
+            product_name_id__in=product_ids,
+        ).select_related('device', 'module', 'software', 'csaf_document')
