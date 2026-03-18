@@ -39,7 +39,7 @@ class CsafMatchForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'description', 'product_name_id')
 
 
 class CsafMatchFilterForm(NetBoxModelFilterSetForm):
@@ -96,7 +96,7 @@ class CsafVulnerabilityForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafVulnerability
-        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score')
+        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score', 'product_ids')
 
 
 class CsafVulnerabilityFilterForm(NetBoxModelFilterSetForm):
