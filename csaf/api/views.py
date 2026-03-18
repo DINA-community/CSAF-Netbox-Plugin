@@ -177,6 +177,50 @@ def getSummary(vulnerability):
     return None
 
 
+def collectProductIds(data):
+    """
+    Recursively collect product IDs from CSAF structures.
+    """
+    values = set()
+    if isinstance(data, str):
+        value = data.strip()
+        if value:
+            values.add(value)
+    elif isinstance(data, list):
+        for item in data:
+            values.update(collectProductIds(item))
+    elif isinstance(data, dict):
+        for item in data.values():
+            values.update(collectProductIds(item))
+    return values
+
+
+def getProductIds(vulnerability):
+    product_ids = set()
+
+    # CSAF vulnerability-to-product mapping is encoded in product_status.
+    product_status = getFromJson(vulnerability, ('product_status',), {})
+    if isinstance(product_status, dict):
+        for ids in product_status.values():
+            product_ids.update(collectProductIds(ids))
+
+    # Some producers add a direct list on the vulnerability itself.
+    product_ids.update(collectProductIds(getFromJson(vulnerability, ('product_ids',), [])))
+
+    # Some producers embed product references in remediations/threats/flags.
+    for remediation in getFromJson(vulnerability, ('remediations',), []):
+        if isinstance(remediation, dict):
+            product_ids.update(collectProductIds(remediation.get('product_ids', [])))
+    for threat in getFromJson(vulnerability, ('threats',), []):
+        if isinstance(threat, dict):
+            product_ids.update(collectProductIds(threat.get('product_ids', [])))
+    for flag in getFromJson(vulnerability, ('flags',), []):
+        if isinstance(flag, dict):
+            product_ids.update(collectProductIds(flag.get('product_ids', [])))
+
+    return sorted(product_ids)
+
+
 def syncVulnerabilitiesForDocument(doc, jsonDoc):
     vulnerabilities = getFromJson(jsonDoc, ('vulnerabilities',), [])
     if not isinstance(vulnerabilities, list):
@@ -196,6 +240,7 @@ def syncVulnerabilitiesForDocument(doc, jsonDoc):
             'summary': getSummary(vulnerability),
             'cwe': truncate(255, getFromJson(vulnerability, ('cwe', 'id'), None)),
             'cvss_base_score': getBaseScore(vulnerability),
+            'product_ids': getProductIds(vulnerability),
         }
         models.CsafVulnerability.objects.update_or_create(
             csaf_document=doc,

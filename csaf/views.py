@@ -595,7 +595,11 @@ class CsafDocumentBulkDeleteView(generic.BulkDeleteView):
 @register_model_view(models.CsafMatch)
 class CsafMatchView(generic.ObjectView):
     """ This view handles the request for displaying a CsafMatch. """
-    queryset = models.CsafMatch.objects.all()
+    queryset = models.CsafMatch.objects.select_related(
+        'device',
+        'software',
+        'csaf_document',
+    ).prefetch_related('csaf_document__vulnerabilities')
 
 
 @register_model_view(models.CsafMatch, name='add', detail=False)
@@ -615,7 +619,11 @@ class CsafMatchDeleteView(generic.ObjectDeleteView):
 @register_model_view(models.CsafMatch, 'bulk_delete', path='delete', detail=False)
 class CsafMatchBulkDeleteView(generic.BulkDeleteView):
     """ This view handles the buld delete requests for the CsafMatch model. """
-    queryset = models.CsafMatch.objects.all()
+    queryset = models.CsafMatch.objects.select_related(
+        'device',
+        'software',
+        'csaf_document',
+    ).prefetch_related('csaf_document__vulnerabilities')
     filterset = filtersets.CsafMatchFilterSet
     table = tables.CsafMatchTable
 
@@ -667,7 +675,11 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     """ This view handles the request for displaying multiple CsafMatches as a table. """
     model = models.CsafMatch
-    queryset = models.CsafMatch.objects.all()
+    queryset = models.CsafMatch.objects.select_related(
+        'device',
+        'software',
+        'csaf_document',
+    ).prefetch_related('csaf_document__vulnerabilities')
     filterset = filtersets.CsafMatchFilterSet
     filterset_form = forms.CsafMatchFilterForm
     table = tables.CsafMatchTable
@@ -766,7 +778,11 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     linkName = 'None'
 
     def get_children_for(self, parent):
-        return self.child_model.objects
+        return self.child_model.objects.select_related(
+            'device',
+            'software',
+            'csaf_document',
+        ).prefetch_related('csaf_document__vulnerabilities')
 
     def post(self, request, *args, **kwargs):
         logger = logging.getLogger('csaf.views.CsafMatchListFor')

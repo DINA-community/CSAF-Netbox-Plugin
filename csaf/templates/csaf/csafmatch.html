@@ -64,6 +64,37 @@
       </div>
       {% include 'inc/panels/tags.html' %}
     </div>
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">Vulnerabilities</h5>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>CVE</th>
+                <th>Title</th>
+                <th>CVSS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vulnerability in object.related_vulnerabilities %}
+                <tr>
+                  <td>{{ vulnerability|linkify }}</td>
+                  <td>{{ vulnerability.cve|placeholder }}</td>
+                  <td>{{ vulnerability.title|placeholder }}</td>
+                  <td>{{ vulnerability.cvss_base_score|placeholder }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">No vulnerabilities found for this match.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
 {% endblock content %}

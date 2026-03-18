@@ -130,6 +130,17 @@ class CsafMatch(NetBoxModel):
     def docs_url(self):
         return None
 
+    @property
+    def related_vulnerabilities(self):
+        """
+        Return only vulnerabilities relevant for this match's product identifier.
+        """
+        product_id = (self.product_name_id or '').strip()
+        vulnerabilities = self.csaf_document.vulnerabilities.all()
+        if not product_id:
+            return []
+        return [v for v in vulnerabilities if v.matches_product_id(product_id)]
+
 
 class CsafVulnerability(NetBoxModel):
     """
@@ -169,6 +180,10 @@ class CsafVulnerability(NetBoxModel):
         blank=True,
         null=True,
     )
+    product_ids = models.JSONField(
+        blank=True,
+        default=list,
+    )
 
     class Meta:
         ordering = ['id']
@@ -181,3 +196,8 @@ class CsafVulnerability(NetBoxModel):
 
     def __str__(self):
         return self.vulnerability_id
+
+    def matches_product_id(self, product_id):
+        if not product_id:
+            return False
+        return product_id in (self.product_ids or [])

@@ -29,4 +29,4 @@ class CsafVulnerabilitySerializer(NetBoxModelSerializer):
     """
     class Meta:
         model = CsafVulnerability
-        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score')
+        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score', 'product_ids')
