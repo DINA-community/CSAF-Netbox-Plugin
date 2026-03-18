@@ -427,8 +427,15 @@ class CsafVulnerabilityTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    cvss_base_score = tables.Column(
+        empty_values=(),
+        verbose_name='CVSS Base Score',
+    )
 
     class Meta(NetBoxTable.Meta):
         model = CsafVulnerability
         fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
         default_columns = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
+
+    def render_cvss_base_score(self, record):
+        return record.cvss_badge

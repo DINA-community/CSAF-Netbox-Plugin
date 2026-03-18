@@ -25,16 +25,12 @@
               <td>{{ object.id }}</td>
             </tr>
             <tr>
-              <th scope="row">Device</th>
-              <td>{{ object.device|linkify }}</td>
+              <th scope="row">Asset</th>
+              <td>{% if object.related_asset %}{{ object.related_asset|linkify }}{% else %}-{% endif %}</td>
             </tr>
             <tr>
-              <th scope="row">Module</th>
-              <td>{{ object.module|linkify }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Software</th>
-              <td>{{ object.software|linkify }}</td>
+              <th scope="row">Type</th>
+              <td>{{ object.related_asset_type }}</td>
             </tr>
             <tr>
               <th scope="row">Document</th>
@@ -83,7 +79,7 @@
                   <td>{{ vulnerability|linkify }}</td>
                   <td>{{ vulnerability.cve|placeholder }}</td>
                   <td>{{ vulnerability.title|placeholder }}</td>
-                  <td>{{ vulnerability.cvss_base_score|placeholder }}</td>
+                  <td>{{ vulnerability.cvss_badge }}</td>
                 </tr>
               {% empty %}
                 <tr>

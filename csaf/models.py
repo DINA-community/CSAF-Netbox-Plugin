@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.utils.html import format_html
 from django.utils import timezone
 from netbox.models import NetBoxModel
 
@@ -224,6 +225,47 @@ class CsafVulnerability(NetBoxModel):
         if not product_id:
             return False
         return product_id in (self.product_ids or [])
+
+    @property
+    def cvss_severity(self):
+        score = self.cvss_base_score
+        if score is None:
+            return None
+        if score == 0:
+            return 'None'
+        if score < 4.0:
+            return 'Low'
+        if score < 7.0:
+            return 'Medium'
+        if score < 9.0:
+            return 'High'
+        return 'Critical'
+
+    @property
+    def cvss_badge(self):
+        score = self.cvss_base_score
+        severity = self.cvss_severity
+        if score is None or severity is None:
+            return '-'
+        try:
+            score_value = float(score)
+        except (TypeError, ValueError):
+            return '-'
+
+        class_name = {
+            'None': 'text-bg-secondary',
+            'Low': 'text-bg-success',
+            'Medium': 'text-bg-warning',
+            'High': 'text-bg-danger',
+            'Critical': 'text-bg-danger',
+        }.get(severity, 'text-bg-secondary')
+
+        return format_html(
+            '<span class="badge {}">{} ({})</span>',
+            class_name,
+            f'{score_value:.1f}',
+            severity,
+        )
 
     @property
     def related_matches(self):
