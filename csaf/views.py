@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 import requests
 import time
-from csaf.api.views import getFromJson
+from csaf.api.views import getFromJson, getToken, createDocumentForData
 from dcim.models import Device, DeviceType, Module
 from django.contrib import messages
 from django.db import transaction
@@ -176,6 +176,166 @@ class Synchronisers(View):
             'data': data,
             'error_help': error_help,
         })
+
+
+def getIsdubaBaseUrl():
+    base_url = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'base_url'), None)
+    base_url = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_base_url'), base_url)
+    if base_url:
+        return base_url.rstrip('/')
+
+    systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'synchronisers', 'urls'), [])
+    for system in systems:
+        fallback = getFromJson(system, ('isdubaBaseUrl',), None)
+        if fallback:
+            return fallback.rstrip('/')
+    return None
+
+
+def queryIsdubaDocumentsByName(query):
+    if not query:
+        return []
+
+    base_url = getIsdubaBaseUrl()
+    if not base_url:
+        return []
+
+    token = getToken()
+    if not token:
+        return []
+
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'verify_ssl'), True)
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_verify_ssl'), verify_ssl)
+    endpoint = f"{base_url}/api/documents"
+    escaped_query = query.replace('"', '\\"')
+    query_expression = (
+        f'$title "{escaped_query}" ilike '
+        f'$tracking_id "{escaped_query}" ilike or'
+    )
+
+    response = requests.get(
+        endpoint,
+        headers={'authorization': 'Bearer ' + token},
+        params={
+            'query': query_expression,
+            'columns': 'id title tracking_id publisher',
+            'count': '1',
+            'advisories': 'false',
+            'aggregate': 'false',
+        },
+        verify=verify_ssl,
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    items = []
+    if isinstance(payload, dict):
+        raw_items = payload.get('documents') or payload.get('results') or payload.get('items') or payload.get('data') or []
+        if isinstance(raw_items, list):
+            items = raw_items
+    elif isinstance(payload, list):
+        items = payload
+
+    result = []
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        # In some responses documents may be wrapped in aggregated `data` entries.
+        candidate = dict(item)
+        if isinstance(item.get('data'), list):
+            merged = {}
+            for row in item.get('data'):
+                if isinstance(row, dict):
+                    merged.update(row)
+            candidate.update(merged)
+
+        doc_id = candidate.get('id', item.get('id'))
+        if doc_id is None:
+            continue
+        docurl = f"{endpoint}/{doc_id}"
+
+        title = (
+            candidate.get('title')
+            or candidate.get('tracking_id')
+            or getFromJson(candidate, ('document', 'title'), None)
+            or getFromJson(candidate, ('tracking', 'id'), None)
+            or str(docurl)
+        )
+
+        docurl = str(docurl)
+        if docurl in seen:
+            continue
+        seen.add(docurl)
+        result.append({
+            'docurl': docurl,
+            'title': str(title),
+            'external_url': docurl.replace('/api/documents/', '/#/documents/'),
+        })
+
+    return result
+
+
+@register_model_view(models.CsafDocument, name='add_by_name', path='add-by-name', detail=False)
+class CsafDocumentAddByNameView(generic.ObjectListView):
+    """
+    Alternative UI for adding CSAF documents by searching names in ISDuBA.
+    """
+    queryset = models.CsafDocument.objects.all()
+    template_name = 'csaf/csafdocument_add_by_name.html'
+
+    def get(self, request):
+        if not request.user.has_perm('csaf.add_csafdocument'):
+            raise PermissionsViolation('User does not have permission csaf.add_csafdocument')
+
+        query = (request.GET.get('q') or '').strip()
+        results = []
+        if query:
+            try:
+                results = queryIsdubaDocumentsByName(query)
+            except requests.exceptions.RequestException as ex:
+                messages.error(request, f'Failed to query ISDuBA: {ex}')
+
+        choices = [(entry['docurl'], f"{entry['title']} ({entry['docurl']})") for entry in results]
+        form = forms.CsafDocumentSearchForm(initial={'q': query})
+        form.fields['selected_docurls'].choices = choices
+
+        return render(request, self.template_name, {
+            'form': form,
+            'query': query,
+            'result_count': len(results),
+            'results': results,
+        })
+
+    def post(self, request):
+        if not request.user.has_perm('csaf.add_csafdocument'):
+            raise PermissionsViolation('User does not have permission csaf.add_csafdocument')
+
+        query = (request.POST.get('q') or '').strip()
+        try:
+            results = queryIsdubaDocumentsByName(query) if query else []
+        except requests.exceptions.RequestException as ex:
+            messages.error(request, f'Failed to query ISDuBA: {ex}')
+            return redirect(request.path + (f'?q={query}' if query else ''))
+
+        valid_docurls = {entry['docurl'] for entry in results}
+        selected_docurls = [
+            docurl for docurl in request.POST.getlist('selected_docurls')
+            if docurl in valid_docurls
+        ]
+        if not selected_docurls:
+            messages.warning(request, 'No documents selected.')
+            return redirect(request.path + (f'?q={query}' if query else ''))
+
+        created = 0
+        for docurl in selected_docurls:
+            createDocumentForData({'docurl': docurl})
+            created += 1
+
+        messages.success(request, f'Queued {created} document(s) for import.')
+        return redirect('plugins:csaf:csafdocument_list')
 
 def buildInfoStringCsafSync(system, status):
     return {
@@ -637,6 +797,7 @@ class CsafDocumentListView(generic.ObjectListView):
                     .values('c'))
         )
     table = tables.CsafDocumentTable
+    template_name = 'csaf/csafdocument_list.html'
     filterset = filtersets.CsafDocumentFilterSet
     filterset_form = forms.CsafDocumentFilterForm
     actions = {

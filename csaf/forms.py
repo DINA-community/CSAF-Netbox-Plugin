@@ -33,6 +33,19 @@ class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
     publisher = forms.CharField(required=False)
 
 
+class CsafDocumentSearchForm(forms.Form):
+    """
+    Input form for searching CSAF documents by name/title in ISDuBA.
+    """
+    q = forms.CharField(required=False, label='Document name')
+    selected_docurls = forms.MultipleChoiceField(
+        required=False,
+        choices=(),
+        widget=forms.CheckboxSelectMultiple,
+        label='Matching documents',
+    )
+
+
 class CsafMatchForm(NetBoxModelForm):
     """
     Input Form for the CsafMatch model.
