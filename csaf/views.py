@@ -1267,7 +1267,7 @@ class CsafMatchListForModuleView(CsafMatchListFor):
 
 
 # New CsafMatches view for one Document
-@register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatchesnew', )
+@register_model_view(model=models.CsafDocument, name='newmatchlistforcsafdocument', path='csafmatchesnew', )
 class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a CsafDocument. """
     additional_permissions=('csaf.view_csafmatch',)
@@ -1345,7 +1345,7 @@ class CsafVulnerabilityListForCsafDocumentView(generic.ObjectChildrenView):
 
 
 # New CsafMatches view for one Software
-@register_model_view(model=Software, name='matchlistforsoftware', path='csafmatchesnew', )
+@register_model_view(model=Software, name='newmatchlistforsoftware', path='csafmatchesnew', )
 class CsafMatchListForSoftwareView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """
     additional_permissions=('csaf.view_csafmatch',)
