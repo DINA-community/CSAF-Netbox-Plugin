@@ -1253,8 +1253,7 @@ class CsafMatchListForModuleView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             module=obj,
-            acceptance_status__in=[
-                models.CsafMatch.AcceptanceStatus.CONFIRMED])
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
             .count(),
         permission='csaf.view_csafmatch'
     )
@@ -1267,7 +1266,38 @@ class CsafMatchListForModuleView(CsafMatchListFor):
             )
 
 
-# CsafMatches view for one Document
+# New CsafMatches view for one Document
+@register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatches', )
+class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a CsafDocument. """
+    additional_permissions=('csaf.view_csafmatch',)
+    queryset = models.CsafDocument.objects.all()
+    table = tables.CsafMatchListForCsafDocumentTable
+    linkName= 'document'
+
+    tab = ViewTab(
+        label='Potential CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            csaf_document=obj,
+            acceptance_status__in=[
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.REOPENED])
+            .count(),
+        permission='csaf.view_csafmatch'
+    )
+
+    def get_children_for(self, parent):
+        return self.child_model.objects.filter(
+                module=parent
+            ).filter(
+                acceptance_status__in=[
+                    models.CsafMatch.AcceptanceStatus.NEW,
+                    models.CsafMatch.AcceptanceStatus.REOPENED
+                ]
+            )
+
+
+# Confirmed CsafMatches view for one Document
 @register_model_view(model=models.CsafDocument, name='matchlistforcsafdocument', path='csafmatches', )
 class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a CsafDocument. """
@@ -1280,17 +1310,17 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             csaf_document=obj,
-            acceptance_status__in=[
-                models.CsafMatch.AcceptanceStatus.NEW,
-                models.CsafMatch.AcceptanceStatus.CONFIRMED,
-                models.CsafMatch.AcceptanceStatus.REOPENED])
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
             .count(),
         permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):
-        return self.child_model.objects.filter(csaf_document=parent)
-
+        return self.child_model.objects.filter(
+                module=parent
+            ).filter(
+                acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
+            )
 
 
 # CsafVulnerabilities view for one Document
@@ -1314,7 +1344,7 @@ class CsafVulnerabilityListForCsafDocumentView(generic.ObjectChildrenView):
         return self.child_model.objects.filter(csaf_document=parent)
 
 
-# CsafMatches view for one Software
+# New CsafMatches view for one Software
 @register_model_view(model=Software, name='matchlistforsoftware', path='csafmatches', )
 class CsafMatchListForSoftwareView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """
@@ -1324,7 +1354,7 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
     linkName= 'software'
 
     tab = ViewTab(
-        label='CSAF Matches',
+        label='Potential CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
             software=obj,
             acceptance_status__in=[
@@ -1337,6 +1367,32 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(software=parent)
+
+
+# Confirmed CsafMatches view for one Software
+@register_model_view(model=Software, name='matchlistforsoftware', path='csafmatches', )
+class CsafMatchListForSoftwareView(CsafMatchListFor):
+    """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """
+    additional_permissions=('csaf.view_csafmatch',)
+    queryset = Software.objects.all()
+    table = tables.CsafMatchListForSoftwareTable
+    linkName= 'software'
+
+    tab = ViewTab(
+        label='CSAF Matches',
+        badge=lambda obj: models.CsafMatch.objects.filter(
+            software=obj,
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
+            .count(),
+        permission='csaf.view_csafmatch'
+    )
+
+    def get_children_for(self, parent):
+        return self.child_model.objects.filter(
+                module=parent
+            ).filter(
+                acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
+            )
 
 
 def handleStatus(request, enumCls=models.CsafMatch.AcceptanceStatus, deflt='1110'):
