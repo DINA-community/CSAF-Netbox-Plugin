@@ -1031,11 +1031,47 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         'bulk_edit': {'change'},
         'bulk_delete': {'delete'},
     }
-    def get(self, request, *args, **kwargs):
-        statusString, acceptance_status, statusSearch = handleStatus(request)
+    status_filter_enabled = True
+    include_confirmed_in_status_filter = False
+    view_mode = 'non_confirmed'
+
+    def get_list_queryset(self, request):
+        queryset = self.queryset
+        statusString = ''
+        acceptance_status = {}
+
         if self.filterset:
-            self.queryset = self.filterset(request.GET, self.queryset, request=request).qs
-        childObjects = self.queryset.filter(acceptance_status__in=statusSearch)
+            queryset = self.filterset(request.GET, queryset, request=request).qs
+
+        if self.status_filter_enabled:
+            default_status = '1110' if self.include_confirmed_in_status_filter else '1101'
+            statusString, acceptance_status, statusSearch = handleStatus(request, deflt=default_status)
+            if not self.include_confirmed_in_status_filter:
+                statusSearch.discard(models.CsafMatch.AcceptanceStatus.CONFIRMED)
+                acceptance_status[str(models.CsafMatch.AcceptanceStatus.CONFIRMED)] = 0
+                statusString = ''.join(str(acceptance_status[str(entry)]) for entry in models.CsafMatch.AcceptanceStatus)
+            queryset = queryset.filter(acceptance_status__in=statusSearch)
+        else:
+            queryset = queryset.filter(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)
+
+        return queryset, statusString, acceptance_status
+
+    def get_match_tabs(self):
+        return [
+            {
+                'label': 'Potential CSAF Matches',
+                'url': 'plugins:csaf:csafmatch_list',
+                'active': self.view_mode == 'non_confirmed',
+            },
+            {
+                'label': 'CSAF Matches',
+                'url': 'plugins:csaf:csafmatch_confirmed',
+                'active': self.view_mode == 'confirmed',
+            },
+        ]
+
+    def get(self, request, *args, **kwargs):
+        childObjects, statusString, acceptance_status = self.get_list_queryset(request)
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.model)
@@ -1061,7 +1097,9 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             'acceptance_status': acceptance_status,
             'statusString': statusString,
             'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
-            'statusFilter': True,
+            'statusFilter': self.status_filter_enabled,
+            'statusFilterIncludeConfirmed': self.include_confirmed_in_status_filter,
+            'match_tabs': self.get_match_tabs(),
             'return_url': return_url,
             'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             **self.get_extra_context(request),
@@ -1081,7 +1119,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return self.get(request, args, kwargs)
 
-            selected_objects = self.queryset.filter(
+            selected_objects, _, _ = self.get_list_queryset(request)
+            selected_objects = selected_objects.filter(
                 pk__in=request.POST.getlist('pk'),
             )
             with transaction.atomic():
@@ -1098,7 +1137,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match RemediationStatus: {targetRemStatus}.")
                 return self.get(request, args, kwargs)
 
-            selected_objects = self.queryset.filter(
+            selected_objects, _, _ = self.get_list_queryset(request)
+            selected_objects = selected_objects.filter(
                 pk__in=request.POST.getlist('pk'),
             )
             with transaction.atomic():
@@ -1108,6 +1148,13 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
         return redirect(self.get_return_url(request))
+
+
+@register_model_view(models.CsafMatch, name='confirmed', path='confirmed', detail=False)
+class CsafConfirmedMatchListView(CsafMatchListView):
+    status_filter_enabled = False
+    include_confirmed_in_status_filter = True
+    view_mode = 'confirmed'
 
 
 class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):

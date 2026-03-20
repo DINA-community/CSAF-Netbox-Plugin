@@ -22,13 +22,24 @@
 
 {% block content %}
   <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
+    {% if match_tabs %}
+      <ul class="nav nav-tabs mb-3">
+        {% for tab in match_tabs %}
+          <li class="nav-item">
+            <a class="nav-link {% if tab.active %}active{% endif %}" href="{% url tab.url %}">{{ tab.label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
 
     <div class="row mb-3">
       {% if statusFilter %}
       <div class="col-auto table-controls noprint">
         <a class="btn {% if acceptance_status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
         <a class="btn {% if acceptance_status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
-        <a class="btn {% if acceptance_status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        {% if statusFilterIncludeConfirmed %}
+          <a class="btn {% if acceptance_status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        {% endif %}
         <a class="btn {% if acceptance_status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
@@ -72,8 +83,10 @@
           </div>
         {% endif %}
 
-      <input type="hidden" name="statusString" value="{{ statusString }}">
-      <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
+      {% if statusFilter %}
+        <input type="hidden" name="statusString" value="{{ statusString }}">
+        <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
+      {% endif %}
       <div class="col col-md-12">
         <div class="card">
           <div class="htmx-container table-responsive" id="object_list">
