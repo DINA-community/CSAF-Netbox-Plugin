@@ -5,10 +5,11 @@ import django_tables2 as tables
 from dcim.models import Device, Module
 from dcim.tables.devices import DeviceTable
 from dcim.tables.modules import ModuleTable
+from django.shortcuts import render
 from django.middleware.csrf import get_token
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
-from netbox.tables import NetBoxTable
+from netbox.tables import NetBoxTable, columns
 from .models import (CsafDocument, CsafMatch, CsafVulnerability)
 from d3c.models import Software
 from d3c.tables import SoftwareTable
@@ -182,10 +183,15 @@ class CsafMatchListForDeviceTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    actions = columns.ActionsColumn(
+        extra_buttons='' \
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -238,10 +244,15 @@ class CsafMatchListForModuleTable(NetBoxTable):
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
     )
+    actions = columns.ActionsColumn(
+        extra_buttons='' \
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -293,6 +304,11 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    actions = columns.ActionsColumn(
+        extra_buttons='' \
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -350,10 +366,15 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    actions = columns.ActionsColumn(
+        extra_buttons='' \
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -411,10 +432,15 @@ class CsafMatchTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    actions = columns.ActionsColumn(
+        extra_buttons='' \
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch

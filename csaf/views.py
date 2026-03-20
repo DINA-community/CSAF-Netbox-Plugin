@@ -1129,6 +1129,18 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
+        reject = request.POST.get('reject', "")
+        if reject:
+            setAcceptedStatusFor(self.queryset, reject, models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE, request)
+
+        accept = request.POST.get('accept', "")
+        if accept:
+            setAcceptedStatusFor(self.queryset, accept, models.CsafMatch.AcceptanceStatus.CONFIRMED, request)
+
+        renew = request.POST.get('renew', "")
+        if renew:
+            setAcceptedStatusFor(self.queryset, renew, models.CsafMatch.AcceptanceStatus.NEW, request)
+
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
@@ -1166,6 +1178,19 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         return redirect(self.get_return_url(request))
 
 
+def setAcceptedStatusFor(queryset, matchId, targetStatus, request):
+    selected_objects = queryset.filter(
+        pk=matchId,
+    )
+    with transaction.atomic():
+        count = 0
+        for csafMatch in selected_objects:
+            csafMatch.acceptance_status = targetStatus
+            csafMatch.save()
+            count += 1
+    messages.success(request, f"Updated {count} CSAF-Matches")
+
+
 @register_model_view(models.CsafMatch, name='confirmed', path='confirmed', detail=False)
 class CsafConfirmedMatchListView(CsafMatchListView):
     status_filter_enabled = False
@@ -1193,9 +1218,22 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         logger.debug("POST from Match List")
         instance = self.get_object(**kwargs)
 
+        children = self.get_children_for(instance)
         user = request.user
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
+
+        reject = request.POST.get('reject', "")
+        if reject:
+            setAcceptedStatusFor(children, reject, models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE, request)
+
+        accept = request.POST.get('accept', "")
+        if accept:
+            setAcceptedStatusFor(children, accept, models.CsafMatch.AcceptanceStatus.CONFIRMED, request)
+
+        renew = request.POST.get('renew', "")
+        if renew:
+            setAcceptedStatusFor(children, renew, models.CsafMatch.AcceptanceStatus.NEW, request)
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
@@ -1203,7 +1241,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
 
-            selected_objects = self.get_children_for(instance).filter(
+            selected_objects = children.filter(
                 pk__in=request.POST.getlist('pk'),
             )
             with transaction.atomic():
@@ -1220,7 +1258,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match RemediationStatus: {targetRemStatus}.")
                 return redirect(self.get_return_url(request))
 
-            selected_objects = self.get_children_for(instance).filter(
+            selected_objects = children.filter(
                 pk__in=request.POST.getlist('pk'),
             )
             with transaction.atomic():
