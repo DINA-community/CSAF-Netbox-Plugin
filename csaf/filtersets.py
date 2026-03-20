@@ -16,6 +16,9 @@ class CsafDocumentFilterSet(NetBoxModelFilterSet):
     title = MultiValueCharFilter(
         lookup_expr='icontains'
     )
+    tracking_id = MultiValueCharFilter(
+        lookup_expr='icontains'
+    )
     docurl = MultiValueCharFilter(
         lookup_expr='icontains'
     )
@@ -30,12 +33,15 @@ class CsafDocumentFilterSet(NetBoxModelFilterSet):
     )
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'tracking_id', 'docurl', 'version', 'lang', 'publisher')
 
     def search(self, queryset, title, value):
         if not value.strip():
             return queryset
-        return queryset.filter(title__icontains=value)
+        return queryset.filter(
+            Q(title__icontains=value) |
+            Q(tracking_id__icontains=value)
+        )
 
 
 class CsafMatchFilterSet(NetBoxModelFilterSet):
@@ -90,6 +96,7 @@ class CsafMatchFilterSet(NetBoxModelFilterSet):
         return queryset.filter(
             Q(description__icontains=value) |
             Q(csaf_document__title__icontains=value) |
+            Q(csaf_document__tracking_id__icontains=value) |
             Q(software__name__icontains=value) |
             Q(device__name__icontains=value) |
             Q(module__name__icontains=value)
@@ -131,5 +138,6 @@ class CsafVulnerabilityFilterSet(NetBoxModelFilterSet):
             Q(title__icontains=value) |
             Q(summary__icontains=value) |
             Q(cwe__icontains=value) |
-            Q(csaf_document__title__icontains=value)
+            Q(csaf_document__title__icontains=value) |
+            Q(csaf_document__tracking_id__icontains=value)
         )

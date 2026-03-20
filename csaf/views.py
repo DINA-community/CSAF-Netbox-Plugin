@@ -192,10 +192,7 @@ def getIsdubaBaseUrl():
     return None
 
 
-def queryIsdubaDocumentsByName(query):
-    if not query:
-        return []
-
+def queryIsdubaDocuments(query_expression):
     base_url = getIsdubaBaseUrl()
     if not base_url:
         return []
@@ -207,12 +204,6 @@ def queryIsdubaDocumentsByName(query):
     verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'verify_ssl'), True)
     verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_verify_ssl'), verify_ssl)
     endpoint = f"{base_url}/api/documents"
-    escaped_query = query.replace('"', '\\"')
-    query_expression = (
-        f'$title "{escaped_query}" ilike '
-        f'$tracking_id "{escaped_query}" ilike or'
-    )
-
     response = requests.get(
         endpoint,
         headers={'authorization': 'Bearer ' + token},
@@ -256,12 +247,16 @@ def queryIsdubaDocumentsByName(query):
         if doc_id is None:
             continue
         docurl = f"{endpoint}/{doc_id}"
+        tracking_id = (
+            candidate.get('tracking_id')
+            or getFromJson(candidate, ('tracking', 'id'), None)
+            or getFromJson(candidate, ('document', 'tracking', 'id'), None)
+        )
 
         title = (
             candidate.get('title')
-            or candidate.get('tracking_id')
+            or tracking_id
             or getFromJson(candidate, ('document', 'title'), None)
-            or getFromJson(candidate, ('tracking', 'id'), None)
             or str(docurl)
         )
 
@@ -272,10 +267,32 @@ def queryIsdubaDocumentsByName(query):
         result.append({
             'docurl': docurl,
             'title': str(title),
+            'tracking_id': str(tracking_id) if tracking_id else '',
             'external_url': docurl.replace('/api/documents/', '/#/documents/'),
         })
 
     return result
+
+
+def queryIsdubaDocumentsByName(query):
+    if not query:
+        return []
+
+    escaped_query = query.replace('"', '\\"')
+    query_expression = (
+        f'$title "{escaped_query}" ilike '
+        f'$tracking_id "{escaped_query}" ilike or'
+    )
+    return queryIsdubaDocuments(query_expression)
+
+
+def queryIsdubaDocumentsByTrackingId(query):
+    if not query:
+        return []
+
+    escaped_query = query.replace('"', '\\"')
+    query_expression = f'$tracking_id "{escaped_query}" ilike'
+    return queryIsdubaDocuments(query_expression)
 
 
 @register_model_view(models.CsafDocument, name='add_by_name', path='add-by-name', detail=False)
@@ -316,6 +333,66 @@ class CsafDocumentAddByNameView(generic.ObjectListView):
         query = (request.POST.get('q') or '').strip()
         try:
             results = queryIsdubaDocumentsByName(query) if query else []
+        except requests.exceptions.RequestException as ex:
+            messages.error(request, f'Failed to query ISDuBA: {ex}')
+            return redirect(request.path + (f'?q={query}' if query else ''))
+
+        valid_docurls = {entry['docurl'] for entry in results}
+        selected_docurls = [
+            docurl for docurl in request.POST.getlist('selected_docurls')
+            if docurl in valid_docurls
+        ]
+        if not selected_docurls:
+            messages.warning(request, 'No documents selected.')
+            return redirect(request.path + (f'?q={query}' if query else ''))
+
+        created = 0
+        for docurl in selected_docurls:
+            createDocumentForData({'docurl': docurl})
+            created += 1
+
+        messages.success(request, f'Queued {created} document(s) for import.')
+        return redirect('plugins:csaf:csafdocument_list')
+
+
+@register_model_view(models.CsafDocument, name='add_by_tracking_id', path='add-by-tracking-id', detail=False)
+class CsafDocumentAddByTrackingIdView(generic.ObjectListView):
+    """
+    Alternative UI for adding CSAF documents by searching tracking IDs in ISDuBA.
+    """
+    queryset = models.CsafDocument.objects.all()
+    template_name = 'csaf/csafdocument_add_by_tracking_id.html'
+
+    def get(self, request):
+        if not request.user.has_perm('csaf.add_csafdocument'):
+            raise PermissionsViolation('User does not have permission csaf.add_csafdocument')
+
+        query = (request.GET.get('q') or '').strip()
+        results = []
+        if query:
+            try:
+                results = queryIsdubaDocumentsByTrackingId(query)
+            except requests.exceptions.RequestException as ex:
+                messages.error(request, f'Failed to query ISDuBA: {ex}')
+
+        choices = [(entry['docurl'], f"{entry['title']} ({entry['docurl']})") for entry in results]
+        form = forms.CsafDocumentSearchForm(initial={'q': query})
+        form.fields['selected_docurls'].choices = choices
+
+        return render(request, self.template_name, {
+            'form': form,
+            'query': query,
+            'result_count': len(results),
+            'results': results,
+        })
+
+    def post(self, request):
+        if not request.user.has_perm('csaf.add_csafdocument'):
+            raise PermissionsViolation('User does not have permission csaf.add_csafdocument')
+
+        query = (request.POST.get('q') or '').strip()
+        try:
+            results = queryIsdubaDocumentsByTrackingId(query) if query else []
         except requests.exceptions.RequestException as ex:
             messages.error(request, f'Failed to query ISDuBA: {ex}')
             return redirect(request.path + (f'?q={query}' if query else ''))

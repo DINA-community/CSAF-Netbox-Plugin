@@ -34,6 +34,7 @@ class CsafDocumentForUrlView(NetBoxModelViewSet):
       {
         "docurl": "<url of the document>",
         "title": "Optional  title of the document",
+        "tracking_id": "Optional tracking id",
         "version": "Optional version",
         "lang": "Opional language",
         "publisher": "Opional publisher"
@@ -111,11 +112,13 @@ def fetchLoadingDocuments():
             code = getFromJson(jsonDoc, ('code',), 200)
             if code == 404:
                 doc.title = TITLE_NOT_FOUND
+                doc.tracking_id = None
                 doc.product_tree = None
                 models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             else:
                 doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
                 doc.title = truncate(1000, getFromJson(jsonDoc, ('document','title'), 'No Title'))
+                doc.tracking_id = truncate(255, getFromJson(jsonDoc, ('document', 'tracking', 'id'), None))
                 doc.version = truncate(50, getFromJson(jsonDoc, ('document','tracking', 'version'), None))
                 doc.publisher = truncate(100, getFromJson(jsonDoc, ('document','publisher', 'name'), None))
                 product_tree = getFromJson(jsonDoc, ('product_tree',), None)

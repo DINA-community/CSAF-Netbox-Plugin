@@ -15,6 +15,11 @@ class CsafDocument(NetBoxModel):
         blank=False,
         null=False
     )
+    tracking_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
     docurl = models.CharField(
         max_length=1000,
         blank=False,

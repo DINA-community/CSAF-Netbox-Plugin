@@ -18,7 +18,7 @@ class CsafDocumentForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'tracking_id', 'docurl', 'version', 'lang', 'publisher')
 
 
 class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
@@ -27,6 +27,7 @@ class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
     """
     model = CsafDocument
     title = forms.CharField(required=False)
+    tracking_id = forms.CharField(required=False)
     docurl = forms.CharField(required=False)
     version = forms.CharField(required=False)
     lang = forms.CharField(required=False)

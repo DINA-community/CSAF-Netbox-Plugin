@@ -77,9 +77,9 @@ class CsafDocumentTable(NetBoxTable):
     """
     class Meta(NetBoxTable.Meta):
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher',
+        fields = ('id', 'title', 'tracking_id', 'docurl', 'version', 'lang', 'publisher',
                   'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'title', 'docurl', 'link', 'version', 'lang', 'publisher',
+        default_columns = ('id', 'title', 'tracking_id', 'docurl', 'link', 'version', 'lang', 'publisher',
                            'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
 
     title = tables.Column(
@@ -127,6 +127,10 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
@@ -145,8 +149,8 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
@@ -181,6 +185,10 @@ class CsafMatchListForModuleTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
@@ -194,8 +202,8 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_asset(self, record):
         asset = get_match_asset(record)
@@ -227,6 +235,10 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
     )
@@ -238,8 +250,8 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'tracking_id', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
@@ -274,6 +286,10 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
@@ -292,8 +308,8 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
@@ -328,6 +344,10 @@ class CsafMatchTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     link = tables.Column(
         accessor='csaf_document.docurl',
         verbose_name='Link')
@@ -346,8 +366,8 @@ class CsafMatchTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
@@ -465,6 +485,10 @@ class CsafVulnerabilityTable(NetBoxTable):
     csaf_document = tables.Column(
         linkify=True
     )
+    tracking_id = tables.Column(
+        accessor='csaf_document.tracking_id',
+        verbose_name='Tracking ID',
+    )
     cvss_base_score = tables.Column(
         empty_values=(),
         verbose_name='CVSS Base Score',
@@ -472,8 +496,8 @@ class CsafVulnerabilityTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafVulnerability
-        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
-        default_columns = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
+        fields = ('id', 'csaf_document', 'tracking_id', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
+        default_columns = ('id', 'csaf_document', 'tracking_id', 'ordinal', 'vulnerability_id', 'cve', 'title', 'cwe', 'cvss_base_score')
 
     def render_cvss_base_score(self, record):
         return record.cvss_badge
