@@ -63,7 +63,7 @@
     <div class="col col-md-6">
       <div class="card">
         <h5 class="card-header">Vulnerabilities</h5>
-        <div class="table-responsive">
+        <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
           <table class="table table-hover">
             <thead>
               <tr>
@@ -83,17 +83,34 @@
                   <td>{{ entry.vulnerability.cvss_badge }}</td>
                   <td>
                     {% if perms.csaf.edit_csafmatch %}
-                      <form method="post" class="d-inline">
-                        {% csrf_token %}
-                        <input type="hidden" name="vulnerability_id" value="{{ entry.vulnerability.id }}">
-                        <select name="targetRemStatus" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                      <div class="dropdown">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary dropdown-toggle"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                        >
+                          {{ entry.status_label }}
+                        </button>
+                        <ul class="dropdown-menu">
                           {% for status in object.remediation_status_choices %}
-                            <option value="{{ status.value }}" {% if status.value == entry.status_value %}selected{% endif %}>
-                              {{ status.label }}
-                            </option>
+                            <li>
+                              <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="vulnerability_id" value="{{ entry.vulnerability.id }}">
+                                <button
+                                  type="submit"
+                                  class="dropdown-item {% if status.value == entry.status_value %}active{% endif %}"
+                                  name="targetRemStatus"
+                                  value="{{ status.value }}"
+                                >
+                                  {{ status.label }}
+                                </button>
+                              </form>
+                            </li>
                           {% endfor %}
-                        </select>
-                      </form>
+                        </ul>
+                      </div>
                     {% else %}
                       {{ entry.status_label }}
                     {% endif %}
