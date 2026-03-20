@@ -5,6 +5,7 @@ import django_tables2 as tables
 from dcim.models import Device, Module
 from dcim.tables.devices import DeviceTable
 from dcim.tables.modules import ModuleTable
+from django.middleware.csrf import get_token
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable
@@ -68,6 +69,45 @@ def render_remediation_status_with_progress(record):
         progress['resolved'],
         progress['total'],
         progress['in_progress'],
+    )
+
+def render_acceptance_status_dropdown(record, request):
+    if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
+        return record.get_acceptance_status_display()
+
+    csrf_token = get_token(request)
+    action = request.get_full_path()
+    current_label = record.get_acceptance_status_display()
+    menu_items = []
+    for status in record.AcceptanceStatus:
+        is_active = status.value == record.acceptance_status
+        item_class = 'dropdown-item active' if is_active else 'dropdown-item'
+        menu_items.append((
+            action,
+            csrf_token,
+            record.pk,
+            item_class,
+            status.value,
+            status.label,
+        ))
+
+    return format_html(
+        '<div class="dropdown">'
+        '<button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{}</button>'
+        '<ul class="dropdown-menu">{}</ul>'
+        '</div>',
+        current_label,
+        format_html_join(
+            '',
+            '<li>'
+            '<form method="post" action="{}" class="d-inline">'
+            '<input type="hidden" name="csrfmiddlewaretoken" value="{}">'
+            '<input type="hidden" name="pk" value="{}">'
+            '<button type="submit" class="{}" name="targetAccStatus" value="{}">{}</button>'
+            '</form>'
+            '</li>',
+            menu_items,
+        ),
     )
 
 
@@ -167,6 +207,9 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     def render_remediation_status(self, record):
         return render_remediation_status_with_progress(record)
 
+    def render_acceptance_status(self, record):
+        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+
 
 class CsafMatchListForModuleTable(NetBoxTable):
     """
@@ -216,6 +259,9 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     def render_remediation_status(self, record):
         return render_remediation_status_with_progress(record)
+
+    def render_acceptance_status(self, record):
+        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
 
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
@@ -267,6 +313,9 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     def render_remediation_status(self, record):
         return render_remediation_status_with_progress(record)
+
+    def render_acceptance_status(self, record):
+        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -326,6 +375,9 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     def render_remediation_status(self, record):
         return render_remediation_status_with_progress(record)
 
+    def render_acceptance_status(self, record):
+        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+
 
 class CsafMatchTable(NetBoxTable):
     """
@@ -383,6 +435,9 @@ class CsafMatchTable(NetBoxTable):
 
     def render_remediation_status(self, record):
         return render_remediation_status_with_progress(record)
+
+    def render_acceptance_status(self, record):
+        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
 
 
 class DevicesWithMatchTable(DeviceTable):

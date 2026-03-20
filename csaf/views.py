@@ -922,8 +922,24 @@ class CsafMatchView(generic.ObjectView):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
+        target_acceptance_status = request.POST.get('targetAccStatus')
+        if target_acceptance_status:
+            if target_acceptance_status not in models.CsafMatch.AcceptanceStatus:
+                messages.error(request, f"Unknown acceptance status: {target_acceptance_status}")
+                return redirect(request.path)
+
+            if instance.acceptance_status != target_acceptance_status:
+                instance.acceptance_status = target_acceptance_status
+                instance.save(update_fields=['acceptance_status'])
+                messages.success(request, "Updated acceptance status.")
+            return redirect(request.path)
+
         vulnerability_id = request.POST.get('vulnerability_id')
         remediation_status = request.POST.get('targetRemStatus')
+        if not vulnerability_id or not remediation_status:
+            messages.error(request, "Missing remediation status update data.")
+            return redirect(request.path)
+
         if remediation_status not in models.CsafMatch.RemediationStatus:
             messages.error(request, f"Unknown remediation status: {remediation_status}")
             return redirect(request.path)

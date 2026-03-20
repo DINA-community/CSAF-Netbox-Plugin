@@ -46,7 +46,39 @@
             </tr>
             <tr>
               <th scope="row">Acceptance Status</th>
-              <td>{{ object.get_acceptance_status_display }}</td>
+              <td>
+                {% if perms.csaf.edit_csafmatch %}
+                  <div class="dropdown d-inline-block">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary dropdown-toggle"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      {{ object.get_acceptance_status_display }}
+                    </button>
+                    <ul class="dropdown-menu">
+                      {% for status in object.AcceptanceStatus %}
+                        <li>
+                          <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button
+                              type="submit"
+                              class="dropdown-item {% if status.value == object.acceptance_status %}active{% endif %}"
+                              name="targetAccStatus"
+                              value="{{ status.value }}"
+                            >
+                              {{ status.label }}
+                            </button>
+                          </form>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% else %}
+                  {{ object.get_acceptance_status_display }}
+                {% endif %}
+              </td>
             </tr>
             <tr>
               <th scope="row">Remediation Status</th>
