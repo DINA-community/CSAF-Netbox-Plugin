@@ -1288,7 +1288,7 @@ class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
-                module=parent
+                csaf_document=parent
             ).filter(
                 acceptance_status__in=[
                     models.CsafMatch.AcceptanceStatus.NEW,
@@ -1317,7 +1317,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
-                module=parent
+                csaf_document=parent
             ).filter(
                 acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
             )
