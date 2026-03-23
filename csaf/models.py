@@ -127,7 +127,7 @@ class CsafMatch(NetBoxModel):
         verbose_name_plural = 'CsafMatches'
         constraints = [
             models.UniqueConstraint(
-                fields=["device", "software", "csaf_document", "product_name_id"],
+                fields=["device", "module", "software", "csaf_document", "product_name_id"],
                 name="csafmatch_unique",
                 nulls_distinct=False)
         ]
