@@ -8,7 +8,7 @@ from csaf.api.views import getFromJson, getToken, createDocumentForData
 from dcim.models import Device, DeviceType, Module
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, OuterRef, Subquery, QuerySet
+from django.db.models import Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
@@ -1584,72 +1584,12 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
     Handles asset-specific vulnerability entries derived from CSAF matches.
     """
     additional_permissions = ('csaf.view_csafmatch',)
-    child_model = models.CsafMatch
+    child_model = models.CsafMatchVulnerabilityRemediation
     table = tables.CsafAssetVulnerabilityTable
     template_name = 'csaf/csaf_asset_vulnerability_list.html'
-    query_chunk_size = 500
 
     def get_children_for(self, parent):
         return self.child_model.objects.none()
-
-    def chunk_values(self, values: list[int], size: int):
-        for i in range(0, len(values), size):
-            yield values[i:i + size]
-
-    def build_table_data(self, matches: QuerySet) -> list[dict]:
-        matches = list(matches)
-        if not matches:
-            return []
-
-        doc_ids = sorted({match.csaf_document_id for match in matches if match.csaf_document_id})
-        match_ids = [match.pk for match in matches]
-
-        vulnerabilities_by_doc: dict[int, list[models.CsafVulnerability]] = defaultdict(list)
-        for chunk in self.chunk_values(doc_ids, self.query_chunk_size):
-            vulnerabilities = models.CsafVulnerability.objects.filter(
-                csaf_document_id__in=chunk
-            ).only(
-                'id',
-                'csaf_document_id',
-                'vulnerability_id',
-                'cve',
-                'title',
-                'cvss_base_score',
-                'product_ids',
-            ).order_by('csaf_document_id', 'ordinal', 'id')
-            for vulnerability in vulnerabilities:
-                vulnerabilities_by_doc[vulnerability.csaf_document_id].append(vulnerability)
-
-        status_by_pair: dict[tuple[int, int], str] = {}
-        for chunk in self.chunk_values(match_ids, self.query_chunk_size):
-            statuses = models.CsafMatchVulnerabilityRemediation.objects.filter(
-                match_id__in=chunk
-            ).values_list('match_id', 'vulnerability_id', 'remediation_status')
-            for match_id, vulnerability_id, remediation_status in statuses:
-                status_by_pair[(match_id, vulnerability_id)] = remediation_status
-
-        table_data = []
-        for match in matches:
-            product_id = (match.product_name_id or '').strip()
-            if not product_id:
-                continue
-            for vulnerability in vulnerabilities_by_doc.get(match.csaf_document_id, []):
-                if not vulnerability.matches_product_id(product_id):
-                    continue
-                table_data.append({
-                    'vulnerability': vulnerability,
-                    'match': match,
-                    'status_value': status_by_pair.get(
-                        (match.pk, vulnerability.pk),
-                        models.CsafMatch.RemediationStatus.NEW,
-                    ),
-                })
-
-        table_data.sort(key=lambda row: (
-            row['vulnerability'].vulnerability_id or '',
-            row['match'].pk,
-        ))
-        return table_data
 
     def get_remediation_filter(self, request):
         status = {}
@@ -1680,12 +1620,11 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object(**kwargs)
-        matches = self.get_children_for(instance)
-        table_data = self.build_table_data(matches)
+        child_objects = self.get_children_for(instance)
         rem_status_string, rem_status_search, rem_filter_buttons = self.get_remediation_filter(request)
-        table_data = [row for row in table_data if row.get('status_value') in rem_status_search]
+        child_objects = child_objects.filter(remediation_status__in=rem_status_search)
 
-        table = self.get_table(table_data, request, False)
+        table = self.get_table(child_objects, request, False)
 
         if htmx_partial(request):
             return render(request, 'htmx/table.html', {
@@ -1721,30 +1660,25 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
             messages.error(request, "Missing vulnerability remediation update data.")
             return redirect(self.get_return_url(request))
 
-        payload_parts = payload.split(':', 2)
-        if len(payload_parts) != 3:
+        payload_parts = payload.split(':', 1)
+        if len(payload_parts) != 2:
             messages.error(request, "Invalid vulnerability remediation update data.")
             return redirect(self.get_return_url(request))
 
-        match_id, vulnerability_id, remediation_status = payload_parts
+        remediation_entry_id, remediation_status = payload_parts
         if remediation_status not in models.CsafMatch.RemediationStatus:
             messages.error(request, f"Unknown remediation status: {remediation_status}")
             return redirect(self.get_return_url(request))
 
-        match = self.get_children_for(instance).filter(pk=match_id).select_related('csaf_document').first()
-        if match is None:
-            messages.error(request, "Unknown match.")
-            return redirect(self.get_return_url(request))
-
-        vulnerability = models.CsafVulnerability.objects.filter(
-            pk=vulnerability_id,
-            csaf_document=match.csaf_document,
+        remediation_entry = self.get_children_for(instance).filter(pk=remediation_entry_id).select_related(
+            'match',
+            'vulnerability',
         ).first()
-        if vulnerability is None:
-            messages.error(request, "Unknown vulnerability.")
+        if remediation_entry is None:
+            messages.error(request, "Unknown vulnerability remediation entry.")
             return redirect(self.get_return_url(request))
 
-        match.set_vulnerability_remediation(vulnerability, remediation_status)
+        remediation_entry.match.set_vulnerability_remediation(remediation_entry.vulnerability, remediation_status)
         messages.success(request, "Updated vulnerability remediation status.")
         return redirect(self.get_return_url(request))
 
@@ -1767,13 +1701,15 @@ class CsafVulnerabilityListForDeviceView(CsafVulnerabilityListForAsset):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
-            device=parent,
-            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+            match__device=parent,
+            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
         ).select_related(
-            'csaf_document',
-            'device',
-            'module',
-            'software',
+            'match',
+            'vulnerability',
+            'match__csaf_document',
+            'match__device',
+            'match__module',
+            'match__software',
         )
 
 
@@ -1795,13 +1731,15 @@ class CsafVulnerabilityListForModuleView(CsafVulnerabilityListForAsset):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
-            module=parent,
-            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+            match__module=parent,
+            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
         ).select_related(
-            'csaf_document',
-            'device',
-            'module',
-            'software',
+            'match',
+            'vulnerability',
+            'match__csaf_document',
+            'match__device',
+            'match__module',
+            'match__software',
         )
 
 
@@ -1823,13 +1761,15 @@ class CsafVulnerabilityListForSoftwareView(CsafVulnerabilityListForAsset):
 
     def get_children_for(self, parent):
         return self.child_model.objects.filter(
-            software=parent,
-            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+            match__software=parent,
+            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
         ).select_related(
-            'csaf_document',
-            'device',
-            'module',
-            'software',
+            'match',
+            'vulnerability',
+            'match__csaf_document',
+            'match__device',
+            'match__module',
+            'match__software',
         )
 
 
