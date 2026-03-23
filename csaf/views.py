@@ -1588,12 +1588,25 @@ def get_type_version_value(type_obj):
         return None
 
     try:
+        type_obj._meta.get_field('hardware_version')
+        value = getattr(type_obj, 'hardware_version', None)
+        if value not in (None, ''):
+            return value
+    except FieldDoesNotExist:
+        pass
+
+    try:
         type_obj._meta.get_field('version')
         value = getattr(type_obj, 'version', None)
         if value not in (None, ''):
             return value
     except FieldDoesNotExist:
         pass
+
+    if has_custom_field(type_obj, 'hardware_version'):
+        value = (getattr(type_obj, 'custom_field_data', {}) or {}).get('hardware_version')
+        if value not in (None, ''):
+            return value
 
     if has_custom_field(type_obj, 'hardware_name'):
         value = (getattr(type_obj, 'custom_field_data', {}) or {}).get('hardware_name')
@@ -1749,15 +1762,27 @@ def get_transfer_mapping_for_match(match):
         device_type = getattr(match.device, 'device_type', None)
         try:
             if device_type is not None:
-                device_type._meta.get_field('version')
-                mapping['version'] = {'target': 'device_type', 'attr': 'version', 'kind': 'string'}
+                device_type._meta.get_field('hardware_version')
+                mapping['version'] = {'target': 'device_type', 'attr': 'hardware_version', 'kind': 'string'}
         except FieldDoesNotExist:
-            if has_custom_field(device_type, 'hardware_name'):
-                mapping['version'] = {
-                    'target': 'device_type',
-                    'kind': 'custom_field',
-                    'custom_field_name': 'hardware_name',
-                }
+            try:
+                if device_type is not None:
+                    device_type._meta.get_field('version')
+                    mapping['version'] = {'target': 'device_type', 'attr': 'version', 'kind': 'string'}
+            except FieldDoesNotExist:
+                if has_custom_field(device_type, 'hardware_version'):
+                    mapping['version'] = {
+                        'target': 'device_type',
+                        'kind': 'custom_field',
+                        'custom_field_name': 'hardware_version',
+                    }
+                elif has_custom_field(device_type, 'hardware_name'):
+                    # Backward compatibility for existing setups still using "hardware_name".
+                    mapping['version'] = {
+                        'target': 'device_type',
+                        'kind': 'custom_field',
+                        'custom_field_name': 'hardware_name',
+                    }
         return mapping
     if match.module is not None:
         mapping = {
@@ -1769,15 +1794,27 @@ def get_transfer_mapping_for_match(match):
         module_type = getattr(match.module, 'module_type', None)
         try:
             if module_type is not None:
-                module_type._meta.get_field('version')
-                mapping['version'] = {'target': 'module_type', 'attr': 'version', 'kind': 'string'}
+                module_type._meta.get_field('hardware_version')
+                mapping['version'] = {'target': 'module_type', 'attr': 'hardware_version', 'kind': 'string'}
         except FieldDoesNotExist:
-            if has_custom_field(module_type, 'hardware_name'):
-                mapping['version'] = {
-                    'target': 'module_type',
-                    'kind': 'custom_field',
-                    'custom_field_name': 'hardware_name',
-                }
+            try:
+                if module_type is not None:
+                    module_type._meta.get_field('version')
+                    mapping['version'] = {'target': 'module_type', 'attr': 'version', 'kind': 'string'}
+            except FieldDoesNotExist:
+                if has_custom_field(module_type, 'hardware_version'):
+                    mapping['version'] = {
+                        'target': 'module_type',
+                        'kind': 'custom_field',
+                        'custom_field_name': 'hardware_version',
+                    }
+                elif has_custom_field(module_type, 'hardware_name'):
+                    # Backward compatibility for existing setups still using "hardware_name".
+                    mapping['version'] = {
+                        'target': 'module_type',
+                        'kind': 'custom_field',
+                        'custom_field_name': 'hardware_name',
+                    }
         return mapping
     if match.software is not None:
         return {
@@ -1827,7 +1864,7 @@ def can_edit_related_asset(user, match):
     return False
 
 
-def transfer_product_value_to_asset(match, field_key, comparison_rows, transfer_value=None):
+def transfer_product_value_to_asset(match, field_key, comparison_rows, transfer_value=None, actor_user=None):
     mapping = get_transfer_mapping_for_match(match)
     spec = mapping.get(field_key)
     if not spec:
@@ -1850,12 +1887,24 @@ def transfer_product_value_to_asset(match, field_key, comparison_rows, transfer_
         return False, 'The CSAF product field is empty and cannot be transferred.'
 
     if value_kind == 'manufacturer_fk':
-        manufacturer = Manufacturer.objects.filter(name__iexact=str(value).strip()).first()
-        if manufacturer is None:
-            return False, f'No manufacturer named "{value}" exists in NetBox.'
-        setattr(target_obj, target_attr, manufacturer)
-        target_obj.save(update_fields=[target_attr])
-        changed_field = target_attr
+        value_str = str(value).strip()
+        if not value_str:
+            return False, 'Manufacturer value is empty.'
+
+        current_manufacturer = getattr(target_obj, target_attr, None)
+        if current_manufacturer is not None:
+            if actor_user is not None and not has_change_permission_for_object(actor_user, current_manufacturer):
+                return False, 'Missing permission to edit the linked manufacturer object.'
+            current_manufacturer.name = value_str
+            current_manufacturer.save(update_fields=['name'])
+            changed_field = f'{target_attr}.name'
+        else:
+            manufacturer = Manufacturer.objects.filter(name__iexact=value_str).first()
+            if manufacturer is None:
+                return False, f'No manufacturer named "{value_str}" exists in NetBox.'
+            setattr(target_obj, target_attr, manufacturer)
+            target_obj.save(update_fields=[target_attr])
+            changed_field = target_attr
     elif value_kind == 'custom_field':
         if not custom_field_name:
             return False, 'Invalid custom field transfer configuration.'
@@ -1907,10 +1956,17 @@ class CsafMatchComparisonView(generic.ObjectView):
         for row in comparison_rows:
             row_spec = transfer_mapping.get(row['field_key'])
             row_target = get_transfer_target_object(instance, row_spec.get('target')) if row_spec else None
+            has_target_permission = has_change_permission_for_object(request.user, row_target)
+            if row_spec and row_spec.get('kind') == 'manufacturer_fk' and row_target is not None:
+                linked_manufacturer = getattr(row_target, row_spec.get('attr'), None)
+                if linked_manufacturer is not None:
+                    has_target_permission = has_target_permission and has_change_permission_for_object(
+                        request.user, linked_manufacturer
+                    )
             row['edits_type_definition'] = bool(row_spec and is_type_level_transfer_target(row_spec.get('target')))
             row['transferable'] = bool(
                 row_spec is not None
-                and has_change_permission_for_object(request.user, row_target)
+                and has_target_permission
                 and row['product_raw'] not in (None, '')
                 and not row['is_identical']
             )
@@ -1973,6 +2029,7 @@ class CsafMatchComparisonView(generic.ObjectView):
                 field_key,
                 comparison_rows,
                 transfer_value=transfer_value,
+                actor_user=request.user,
             )
             if ok:
                 messages.success(request, msg)
