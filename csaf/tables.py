@@ -578,3 +578,136 @@ class CsafVulnerabilityTable(NetBoxTable):
 
     def render_cvss_base_score(self, record):
         return record.cvss_badge
+
+
+class CsafAssetVulnerabilityTable(NetBoxTable):
+    """
+        Table showing vulnerabilities for an asset with their related CSAF match.
+    """
+    vulnerability = tables.Column(
+        empty_values=(),
+        verbose_name='Vulnerability',
+        orderable=False,
+    )
+    cve = tables.Column(
+        empty_values=(),
+        verbose_name='CVE',
+        orderable=False,
+    )
+    title = tables.Column(
+        empty_values=(),
+        verbose_name='Title',
+        orderable=False,
+    )
+    cvss_base_score = tables.Column(
+        empty_values=(),
+        verbose_name='CVSS Base Score',
+        orderable=False,
+    )
+    match = tables.Column(
+        empty_values=(),
+        verbose_name='Match',
+        orderable=False,
+    )
+    match_acceptance = tables.Column(
+        empty_values=(),
+        verbose_name='Match Acceptance',
+        orderable=False,
+    )
+    product_name_id = tables.Column(
+        empty_values=(),
+        verbose_name='Product ID',
+        orderable=False,
+    )
+    remediation_status = tables.Column(
+        empty_values=(),
+        verbose_name='Remediation',
+        orderable=False,
+    )
+
+    class Meta(NetBoxTable.Meta):
+        model = CsafMatch
+        fields = (
+            'vulnerability',
+            'cve',
+            'title',
+            'cvss_base_score',
+            'match',
+            'match_acceptance',
+            'product_name_id',
+            'remediation_status',
+        )
+        default_columns = fields
+
+    def render_vulnerability(self, record):
+        vulnerability = record.get('vulnerability')
+        if vulnerability is None:
+            return '-'
+        return format_html('<a href="{}">{}</a>', vulnerability.get_absolute_url(), vulnerability.vulnerability_id)
+
+    def render_cve(self, record):
+        vulnerability = record.get('vulnerability')
+        if vulnerability is None:
+            return '-'
+        return vulnerability.cve or '-'
+
+    def render_title(self, record):
+        vulnerability = record.get('vulnerability')
+        if vulnerability is None:
+            return '-'
+        return vulnerability.title or '-'
+
+    def render_cvss_base_score(self, record):
+        vulnerability = record.get('vulnerability')
+        if vulnerability is None:
+            return '-'
+        return vulnerability.cvss_badge
+
+    def render_match(self, record):
+        match = record.get('match')
+        if match is None:
+            return '-'
+        return format_html('<a href="{}">#{}</a>', match.get_absolute_url(), match.pk)
+
+    def render_match_acceptance(self, record):
+        match = record.get('match')
+        if match is None:
+            return '-'
+        return match.get_acceptance_status_display()
+
+    def render_product_name_id(self, record):
+        match = record.get('match')
+        if match is None:
+            return '-'
+        return match.product_name_id or '-'
+
+    def render_remediation_status(self, record):
+        match = record.get('match')
+        vulnerability = record.get('vulnerability')
+        if match is None or vulnerability is None:
+            return '-'
+
+        status_value = record.get('status_value', CsafMatch.RemediationStatus.NEW)
+        status_label = CsafMatch.RemediationStatus(status_value).label
+        request = getattr(self, 'request', None)
+        if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
+            return status_label
+
+        menu_items = []
+        for status in CsafMatch.RemediationStatus:
+            item_class = 'dropdown-item active' if status.value == status_value else 'dropdown-item'
+            payload = f'{match.pk}:{vulnerability.pk}:{status.value}'
+            menu_items.append((item_class, payload, status.label))
+
+        return format_html(
+            '<div class="dropdown">'
+            '<button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{}</button>'
+            '<ul class="dropdown-menu">{}</ul>'
+            '</div>',
+            status_label,
+            format_html_join(
+                '',
+                '<li><button type="submit" class="{}" name="vuln_update" value="{}">{}</button></li>',
+                menu_items,
+            ),
+        )
