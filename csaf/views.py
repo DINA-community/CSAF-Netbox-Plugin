@@ -8,7 +8,7 @@ from csaf.api.views import getFromJson, getToken, createDocumentForData
 from dcim.models import Device, DeviceType, Module
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
@@ -1591,6 +1591,12 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
     def get_children_for(self, parent):
         return self.child_model.objects.none()
 
+    def get_current_page_url(self, request):
+        query = request.GET.urlencode()
+        if query:
+            return f'{request.path}?{query}'
+        return request.path
+
     def get_remediation_filter(self, request):
         status = {}
         idx = 0
@@ -1655,20 +1661,21 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
         if not request.user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
+        return_url = self.get_current_page_url(request)
         payload = request.POST.get('vuln_update', '')
         if not payload:
             messages.error(request, "Missing vulnerability remediation update data.")
-            return redirect(self.get_return_url(request))
+            return redirect(return_url)
 
         payload_parts = payload.split(':', 1)
         if len(payload_parts) != 2:
             messages.error(request, "Invalid vulnerability remediation update data.")
-            return redirect(self.get_return_url(request))
+            return redirect(return_url)
 
         remediation_entry_id, remediation_status = payload_parts
         if remediation_status not in models.CsafMatch.RemediationStatus:
             messages.error(request, f"Unknown remediation status: {remediation_status}")
-            return redirect(self.get_return_url(request))
+            return redirect(return_url)
 
         remediation_entry = self.get_children_for(instance).filter(pk=remediation_entry_id).select_related(
             'match',
@@ -1676,11 +1683,39 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
         ).first()
         if remediation_entry is None:
             messages.error(request, "Unknown vulnerability remediation entry.")
-            return redirect(self.get_return_url(request))
+            return redirect(return_url)
 
         remediation_entry.match.set_vulnerability_remediation(remediation_entry.vulnerability, remediation_status)
         messages.success(request, "Updated vulnerability remediation status.")
-        return redirect(self.get_return_url(request))
+        return redirect(return_url)
+
+
+def vulnerability_tab_badge_for(**asset_filter):
+    counts = models.CsafMatchVulnerabilityRemediation.objects.filter(
+        match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+        **asset_filter,
+    ).aggregate(
+        not_started=Count(
+            'id',
+            filter=Q(remediation_status=models.CsafMatch.RemediationStatus.NEW),
+        ),
+        in_progress=Count(
+            'id',
+            filter=Q(remediation_status=models.CsafMatch.RemediationStatus.IN_PROGRESS),
+        ),
+        complete=Count(
+            'id',
+            filter=Q(remediation_status=models.CsafMatch.RemediationStatus.RESOLVED),
+        ),
+    )
+    parts = []
+    if counts['not_started']:
+        parts.append(f"🔴{counts['not_started']}")
+    if counts['in_progress']:
+        parts.append(f"🟡{counts['in_progress']}")
+    if counts['complete']:
+        parts.append(f"🟢{counts['complete']}")
+    return " ".join(parts)
 
 
 @register_model_view(Device, name='vulnerabilitylistfordevice', path='csafvulnerabilities')
@@ -1692,10 +1727,7 @@ class CsafVulnerabilityListForDeviceView(CsafVulnerabilityListForAsset):
 
     tab = ViewTab(
         label='Vulnerabilities',
-        badge=lambda obj: models.CsafMatchVulnerabilityRemediation.objects.filter(
-            match__device=obj,
-            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
-        ).count(),
+        badge=lambda obj: vulnerability_tab_badge_for(match__device=obj),
         permission='csaf.view_csafmatch'
     )
 
@@ -1722,10 +1754,7 @@ class CsafVulnerabilityListForModuleView(CsafVulnerabilityListForAsset):
 
     tab = ViewTab(
         label='Vulnerabilities',
-        badge=lambda obj: models.CsafMatchVulnerabilityRemediation.objects.filter(
-            match__module=obj,
-            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
-        ).count(),
+        badge=lambda obj: vulnerability_tab_badge_for(match__module=obj),
         permission='csaf.view_csafmatch'
     )
 
@@ -1752,10 +1781,7 @@ class CsafVulnerabilityListForSoftwareView(CsafVulnerabilityListForAsset):
 
     tab = ViewTab(
         label='Vulnerabilities',
-        badge=lambda obj: models.CsafMatchVulnerabilityRemediation.objects.filter(
-            match__software=obj,
-            match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
-        ).count(),
+        badge=lambda obj: vulnerability_tab_badge_for(match__software=obj),
         permission='csaf.view_csafmatch'
     )
 
