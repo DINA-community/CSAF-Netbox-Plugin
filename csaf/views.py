@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-from collections import defaultdict
 from django.conf import settings
 import requests
 import time
@@ -34,6 +33,84 @@ RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
 RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+
+COMPONENT_LABELS = {
+    'assetsync': 'Asset Sync',
+    'csafsync': 'CSAF Sync',
+    'matcher': 'Matcher',
+    'sync': 'Synchronizer',
+}
+
+
+def normalize_component_name(value):
+    if value is None:
+        return None
+    key = str(value).strip().lower().replace('-', '').replace('_', '').replace(' ', '')
+    mapping = {
+        'assetsync': 'assetsync',
+        'assetsyncer': 'assetsync',
+        'assetsynchronizer': 'assetsync',
+        'netboxsync': 'assetsync',
+        'csafsync': 'csafsync',
+        'csafsynchronizer': 'csafsync',
+        'isdubasync': 'csafsync',
+        'matcher': 'matcher',
+        'csafmatcher': 'matcher',
+    }
+    return mapping.get(key)
+
+
+def infer_component_type(system, is_matcher=False):
+    explicit = normalize_component_name(getFromJson(system, ('component',), None))
+    if explicit:
+        return explicit
+    explicit = normalize_component_name(getFromJson(system, ('type',), None))
+    if explicit:
+        return explicit
+    if is_matcher:
+        return 'matcher'
+
+    name = str(getFromJson(system, ('name',), '')).lower()
+    if 'matcher' in name:
+        return 'matcher'
+    if 'netbox' in name or 'asset' in name:
+        return 'assetsync'
+    if 'isduba' in name or 'csaf' in name:
+        return 'csafsync'
+    return 'sync'
+
+
+def status_badge_class(state):
+    state = (state or '').lower()
+    if state == 'running':
+        return 'success'
+    if state in ('stop_requested', 'stopping'):
+        return 'warning'
+    if state in ('failed', 'error'):
+        return 'danger'
+    if state in ('offline',):
+        return 'danger'
+    return 'secondary'
+
+
+def build_metric_cards_for_status(status, component):
+    if component == 'matcher':
+        return [
+            {'label': 'Total Runs', 'value': status.get('total_match_runs', 0), 'kind': 'secondary'},
+            {'label': 'Pairs Processed', 'value': status.get('total_pairs_processed', 0), 'kind': 'secondary'},
+            {'label': 'Matches Found', 'value': status.get('total_matches_found', 0), 'kind': 'success'},
+            {'label': 'Pending Tasks', 'value': status.get('pending_tasks', 0), 'kind': 'warning'},
+            {'label': 'Pending Batches', 'value': status.get('pending_match_batches', 0), 'kind': 'warning'},
+        ]
+    return [
+        {'label': 'Products Fetched', 'value': status.get('total_products_fetched', 0), 'kind': 'secondary'},
+        {'label': 'Relationships Fetched', 'value': status.get('total_relationships_fetched', 0), 'kind': 'secondary'},
+        {'label': 'Pending Products', 'value': status.get('pending_products', 0), 'kind': 'warning'},
+        {'label': 'Preprocessed Products', 'value': status.get('preprocessed_products', 0), 'kind': 'info'},
+        {'label': 'Pending Relationships', 'value': status.get('pending_relationships', 0), 'kind': 'warning'},
+        {'label': 'Data Sources', 'value': status.get('data_sources', 0), 'kind': 'info'},
+    ]
+
 
 class Configuration(View):
     """
@@ -159,10 +236,20 @@ class Synchronisers(View):
                 'index': idx,
             }
             isMatcher = getFromJson(system, ('isMatcher',), False)
+            component = infer_component_type(system, is_matcher=isMatcher)
+            systemData['component'] = component
+            systemData['component_label'] = COMPONENT_LABELS.get(component, COMPONENT_LABELS['sync'])
+            systemData['state_badge_class'] = status_badge_class(runState)
+            systemData['metric_cards'] = build_metric_cards_for_status(status, component)
             if isMatcher:
                 systemData['clear'] = CLEAR_TABLE
                 systemData['info'] = buildInfoStringMatcher(system, status)
-                systemData['running'] = status['running']
+                running_tasks = status.get('running', [])
+                systemData['running'] = running_tasks
+                systemData['running_summary'] = {
+                    'running': sum(1 for item in running_tasks if item.get('state') == 'running'),
+                    'other': sum(1 for item in running_tasks if item.get('state') != 'running'),
+                }
             elif 'total_products_fetched' in status:
                 systemData['info'] = buildInfoStringCsafSync(system, status)
             if request.user.has_perm(RIGHT_SYNC_START):
@@ -172,6 +259,8 @@ class Synchronisers(View):
             if request.user.has_perm(RIGHT_SYNC_CLEAR):
                 systemData['canClear'] = True
             data.append(systemData)
+        component_order = {'assetsync': 0, 'csafsync': 1, 'matcher': 2, 'sync': 3}
+        data.sort(key=lambda row: (component_order.get(row.get('component', 'sync'), 99), row.get('name', '')))
 
         return render(request, 'csaf/synchronisers.html', {
             'data': data,
@@ -781,6 +870,9 @@ def getRunningMatchers(request, system, token):
             if dCount != 0:
                 details += f' Documents: {dCount}'
             item['details'] = details
+            progress = item.get('progress')
+            if progress is not None:
+                item['progress_pct'] = int(max(0, min(100, round(progress * 100))))
         return result
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to fetch running tasks of {name}: {ex}")

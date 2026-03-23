@@ -10,56 +10,112 @@
 
 {% block content %}
 <div class="row mb-3">
+  {% for row in data %}
+    <div class="col-12 mb-3">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ row.component_label }}</strong>
+            <span class="text-muted">({{ row.name }})</span>
+          </div>
+          <span class="badge text-bg-{{ row.state_badge_class }}">{{ row.state }}</span>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-6 col-lg-4">
+              <div><span class="text-muted">Last Sync:</span> {{ row.lastSync }}</div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div><span class="text-muted">Started:</span> {{ row.started }}</div>
+            </div>
+            {% if row.running_summary %}
+              <div class="col-md-6 col-lg-4">
+                <div>
+                  <span class="text-muted">Tasks:</span>
+                  <span class="badge text-bg-success">{{ row.running_summary.running }} running</span>
+                  {% if row.running_summary.other %}
+                    <span class="badge text-bg-secondary">{{ row.running_summary.other }} other</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
 
-  <div class="col col-md-12">
-    <div class="card">
-      <div class="card-body table-responsive">
-        <table class="table">
-          <tr>
-            <th>Name</th>
-            <th>Last Sync</th>
-            <th>State</th>
-            <th>Started</th>
-            <th>Tasks</th>
-            <th>Actions</th>
-          </tr>
-          {% for row in data %}
-            <tr>
-              <td>{{ row.name }}</td>
-              <td>{{ row.lastSync }}</td>
-              <td>
-                {{ row.state }}
-                <ul>
-                {% for key,value in row.info.items %}
-                  <li>{{ key }}: {{ value }}</li>
-                {% endfor %}
-                </ul>
-              </td>
-              <td>{{ row.started }}</td>
-              <td>
-                <ul>
-                {% for item in row.running %}
-                  <li>
-                    {% if item.state == "stopped" and row.canStop %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Cancel</a>{% endif %}
-                    {% if item.state == "running" and row.canStop %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Stop</a>{% endif %}
-                    {{ item.id }}: {{ item.state }} {{ item.start_time }}{{item.details}}
-                  </li>
-                {% endfor %}
-                </ul>
-              </td>
-              <td>
-                {% if row.state == "stopped" and row.canStart %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
-                {% if row.state == "running" and row.canStop %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
-                {% if row.clear and row.canClear %}
-                  {% for key,item in row.clear.items %}<a class="btn btn-info" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>{% endfor %}
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </table>
+          <div class="row mb-3">
+            {% for metric in row.metric_cards %}
+              <div class="col-sm-6 col-lg-4 col-xl-2 mb-2">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">{{ metric.label }}</div>
+                  <div class="fw-bold">{{ metric.value|default:"-" }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if row.running %}
+            <h6 class="mb-2">Running Tasks</h6>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>State</th>
+                    <th>Started</th>
+                    <th>Progress</th>
+                    <th>Scope</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in row.running %}
+                    <tr>
+                      <td>#{{ item.id }}</td>
+                      <td>{{ item.state }}</td>
+                      <td>{{ item.start_time }}</td>
+                      <td>
+                        {% if item.progress_pct is not None %}
+                          <div class="progress" style="height: 0.65rem;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ item.progress_pct }}%;" aria-valuenow="{{ item.progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                          </div>
+                          <small class="text-muted">{{ item.progress_pct }}%</small>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                      <td>{{ item.details|default:"-" }}</td>
+                      <td>
+                        {% if row.canStop %}
+                          {% if item.state == "running" %}
+                            <a class="btn btn-sm btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Stop</a>
+                          {% elif item.state == "stopped" %}
+                            <a class="btn btn-sm btn-secondary" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Cancel</a>
+                          {% endif %}
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+
+          <div class="d-flex flex-wrap gap-2">
+            {% if row.state == "stopped" and row.canStart %}
+              <a class="btn btn-primary" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>
+            {% endif %}
+            {% if row.state == "running" and row.canStop %}
+              <a class="btn btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>
+            {% endif %}
+            {% if row.clear and row.canClear %}
+              {% for key,item in row.clear.items %}
+                <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  {% endfor %}
 </div>
 {% if error_help %}
 <div class="row mb-3">
