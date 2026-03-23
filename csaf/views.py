@@ -1119,7 +1119,7 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafVulnerabilityTable
 
 
-# CsafMatches view for all Matches
+# CsafMatches view for New/Reopened Matches
 @register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     """ This view handles the request for displaying multiple CsafMatches as a table. """
@@ -1240,17 +1240,9 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return self.get(request, args, kwargs)
 
-            selected_objects, _, _ = self.get_list_queryset(request)
-            selected_objects = selected_objects.filter(
-                pk__in=request.POST.getlist('pk'),
-            )
-            with transaction.atomic():
-                count = 0
-                for csafMatch in selected_objects:
-                    csafMatch.acceptance_status = targetAccStatus
-                    csafMatch.save()
-                    count += 1
-            messages.success(request, f"Updated {count} CSAF-Matches")
+            pk = request.POST.get('pk', None)
+            pks = request.POST.getlist('pk', [pk])
+            setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
 
         targetRemStatus = request.POST.get('targetRemStatus', "")
         if targetRemStatus:
@@ -1272,18 +1264,67 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
 
 def setAcceptedStatusFor(queryset, matchId, targetStatus, request):
-    selected_objects = queryset.filter(
-        pk=matchId,
-    )
+    if isinstance(matchId, (str, int)):
+        selected_objects = queryset.filter(
+            pk=matchId,
+        )
+    else:
+        selected_objects = queryset.filter(
+            pk__in=matchId,
+        )
     with transaction.atomic():
         count = 0
         for csafMatch in selected_objects:
             csafMatch.acceptance_status = targetStatus
             csafMatch.save()
             count += 1
+            # ToDo: Add config check if findings need to be created
+            if targetStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                doc = csafMatch.csaf_document
+                data = gatherProductInfoFromDoc(doc, csafMatch.product_name_id)
+                createDocumentForData(csafMatch, data)
     messages.success(request, f"Updated {count} CSAF-Matches")
 
 
+def createFindingsFromData(match, data):
+    # ToDo: Create finding
+    pass
+
+
+def gatherProductInfoFromDoc(doc, productNameId):
+    if not doc.product_tree:
+        return None
+    for branch in doc.product_tree.get('branches', []):
+        found, data = gatherProductInfoFromBranch(branch, productNameId)
+        if found:
+            return data
+    return {}
+
+
+def gatherProductInfoFromBranch(branch, productNameId):
+    if getFromJson(branch, ('product', 'product_id', ), None) == productNameId:
+        data = {}
+        addDataFromBranch(branch.get('product'), data)
+        addDataFromBranch(branch, data)
+        return True, data
+    for sub in branch.get('branches', []):
+        found, data = gatherProductInfoFromBranch(sub, productNameId)
+        if found:
+            addDataFromBranch(branch, data)
+            return found, data
+    return False, {}
+
+
+def addDataFromBranch(branch, data):
+    if branch.get('category'):
+        category = branch.get('category')
+        if not data[category]:
+            data[category] = branch.get('name')
+    if branch.get('product_id'):
+        data['product_name'] = branch.get('name')
+
+
+# CsafMatches view for New/Reopened Matches
 @register_model_view(models.CsafMatch, name='confirmed', path='confirmed', detail=False)
 class CsafConfirmedMatchListView(CsafMatchListView):
     status_filter_enabled = False
@@ -1460,7 +1501,7 @@ class CsafNewMatchListForDeviceView(CsafMatchListFor):
 
 # Confirmed CsafMatches view for one Device
 @register_model_view(Device, name='csafmatchlistfordeviceview', path='csafmatches', )
-class CsafMatchListForDeviceView(CsafMatchListFor):
+class CsafConfirmedMatchListForDeviceView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Device. """
     additional_permissions=('csaf.view_csafmatch',)
     queryset = Device.objects.all()
