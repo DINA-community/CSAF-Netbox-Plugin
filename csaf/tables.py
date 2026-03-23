@@ -5,6 +5,7 @@ import django_tables2 as tables
 from dcim.models import Device, Module
 from dcim.tables.devices import DeviceTable
 from dcim.tables.modules import ModuleTable
+from django.urls import reverse
 from django.shortcuts import render
 from django.middleware.csrf import get_token
 from django.utils.html import format_html, format_html_join
@@ -28,6 +29,15 @@ def render_vulnerability_links(record):
     if len(vulns) <= 5:
         return rendered
     return format_html('{} (+{})', rendered, len(vulns) - 5)
+
+
+def render_compare_link(record):
+    if record.acceptance_status != CsafMatch.AcceptanceStatus.CONFIRMED:
+        return '-'
+    return format_html(
+        '<a href="{}" class="btn btn-sm btn-outline-primary">Compare</a>',
+        reverse('plugins:csaf:csafmatch_comparison', kwargs={'pk': record.pk}),
+    )
 
 
 def get_match_asset(record):
@@ -183,6 +193,11 @@ class CsafMatchListForDeviceTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    comparison = tables.Column(
+        empty_values=(),
+        verbose_name='Comparison',
+        orderable=False,
+    )
     actions = columns.ActionsColumn(
         extra_buttons='' \
             '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
@@ -195,11 +210,14 @@ class CsafMatchListForDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_comparison(self, record):
+        return render_compare_link(record)
 
     def render_asset(self, record):
         asset = get_match_asset(record)
@@ -244,6 +262,11 @@ class CsafMatchListForModuleTable(NetBoxTable):
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
     )
+    comparison = tables.Column(
+        empty_values=(),
+        verbose_name='Comparison',
+        orderable=False,
+    )
     actions = columns.ActionsColumn(
         extra_buttons='' \
             '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
@@ -256,14 +279,17 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_asset(self, record):
         asset = get_match_asset(record)
         if asset is None:
             return '-'
         return format_html('<a href="{}">{}</a>', asset.get_absolute_url(), asset)
+
+    def render_comparison(self, record):
+        return render_compare_link(record)
 
     def render_type(self, record):
         return get_match_asset_type(record)
@@ -304,6 +330,11 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    comparison = tables.Column(
+        empty_values=(),
+        verbose_name='Comparison',
+        orderable=False,
+    )
     actions = columns.ActionsColumn(
         extra_buttons='' \
             '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
@@ -312,11 +343,14 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'tracking_id', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'tracking_id', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_comparison(self, record):
+        return render_compare_link(record)
 
     def render_asset(self, record):
         asset = get_match_asset(record)
@@ -366,6 +400,11 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    comparison = tables.Column(
+        empty_values=(),
+        verbose_name='Comparison',
+        orderable=False,
+    )
     actions = columns.ActionsColumn(
         extra_buttons='' \
             '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
@@ -378,11 +417,14 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_comparison(self, record):
+        return render_compare_link(record)
 
     def render_asset(self, record):
         asset = get_match_asset(record)
@@ -432,6 +474,11 @@ class CsafMatchTable(NetBoxTable):
         verbose_name='Vulnerabilities',
         orderable=False,
     )
+    comparison = tables.Column(
+        empty_values=(),
+        verbose_name='Comparison',
+        orderable=False,
+    )
     actions = columns.ActionsColumn(
         extra_buttons='' \
             '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
@@ -444,11 +491,14 @@ class CsafMatchTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
-        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        fields = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
+        default_columns = ('id', 'asset', 'type', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description', 'product_name_id')
 
     def render_vulnerabilities(self, record):
         return render_vulnerability_links(record)
+
+    def render_comparison(self, record):
+        return render_compare_link(record)
 
     def render_asset(self, record):
         asset = get_match_asset(record)

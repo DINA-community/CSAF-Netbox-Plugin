@@ -88,6 +88,14 @@
               <th scope="row">Description</th>
               <td>{{ object.description }}</td>
             </tr>
+            {% if object.acceptance_status == 'C' %}
+              <tr>
+                <th scope="row">Comparison</th>
+                <td>
+                  <a href="{% url 'plugins:csaf:csafmatch_comparison' pk=object.pk %}" class="btn btn-sm btn-outline-primary">Open Comparison</a>
+                </td>
+              </tr>
+            {% endif %}
           </table>
       </div>
       {% include 'inc/panels/tags.html' %}

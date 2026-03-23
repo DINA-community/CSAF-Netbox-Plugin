@@ -1,10 +1,11 @@
 from datetime import datetime
 import logging
 from django.conf import settings
+from django.core.exceptions import FieldDoesNotExist
 import requests
 import time
 from csaf.api.views import getFromJson, getToken, createDocumentForData
-from dcim.models import Device, DeviceType, Module
+from dcim.models import Device, DeviceType, Module, Manufacturer
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, OuterRef, Q, Subquery
@@ -1144,6 +1145,23 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     include_confirmed_in_status_filter = False
     view_mode = 'non_confirmed'
 
+    def apply_comparison_column_layout(self, table):
+        if 'comparison' not in table.columns.names():
+            return
+
+        if self.view_mode == 'non_confirmed':
+            table.columns.hide('comparison')
+            return
+
+        table.columns.show('comparison')
+        sequence = [name for name in table.sequence if name != 'comparison']
+        if 'actions' in sequence:
+            actions_index = sequence.index('actions')
+            sequence.insert(actions_index, 'comparison')
+        else:
+            sequence.append('comparison')
+        table.sequence = sequence
+
     def get_list_queryset(self, request):
         queryset = self.queryset
         statusString = ''
@@ -1187,6 +1205,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         has_bulk_actions = any([a.startswith('bulk_') for a in actions])
 
         table = self.get_table(childObjects, request, has_bulk_actions)
+        self.apply_comparison_column_layout(table)
 
         # If this is an HTMX request, return only the rendered table HTML
         if htmx_partial(request):
@@ -1338,6 +1357,24 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     base_template = 'generic/object_children.html'
     template_name = 'csaf/csafmatch_list.html'
     linkName = 'None'
+    comparison_column_mode = 'hide'
+
+    def apply_comparison_column_layout(self, table):
+        if 'comparison' not in table.columns.names():
+            return
+
+        if self.comparison_column_mode == 'hide':
+            table.columns.hide('comparison')
+            return
+
+        table.columns.show('comparison')
+        sequence = [name for name in table.sequence if name != 'comparison']
+        if 'actions' in sequence:
+            actions_index = sequence.index('actions')
+            sequence.insert(actions_index, 'comparison')
+        else:
+            sequence.append('comparison')
+        table.sequence = sequence
 
     def get_children_for(self, parent):
         return self.child_model.objects.select_related(
@@ -1417,6 +1454,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         table_data = self.prep_table_data(request, childObjects, instance)
         table = self.get_table(table_data, request, has_bulk_actions)
+        self.apply_comparison_column_layout(table)
 
         # If this is an HTMX request, return only the rendered table HTML
         if htmx_partial(request):
@@ -1465,7 +1503,492 @@ def cleanUrl(url):
     return result
 
 
-    
+def extract_csaf_products(product_tree):
+    products = []
+    known_branch_categories = {
+        'architecture',
+        'host_name',
+        'language',
+        'legacy',
+        'patch_level',
+        'product_family',
+        'product_name',
+        'product_version',
+        'product_version_range',
+        'service_pack',
+        'specification',
+        'vendor',
+    }
+
+    def walk(node, path, lineage):
+        if isinstance(node, dict):
+            category = node.get('category')
+            name = node.get('name')
+            include_in_lineage = category in known_branch_categories and isinstance(name, str) and bool(name.strip())
+            current_path = path + ([name] if include_in_lineage else [])
+            current_lineage = lineage + ([{'category': category, 'name': name}] if include_in_lineage else [])
+
+            product = node.get('product')
+            if isinstance(product, dict):
+                entry = dict(product)
+                entry['_branch_category'] = category
+                entry['_branch_name'] = name
+                if current_path:
+                    entry['path'] = current_path
+                if current_lineage:
+                    entry['_lineage'] = current_lineage
+                products.append(entry)
+
+            full_product_names = node.get('full_product_names')
+            if isinstance(full_product_names, list):
+                for item in full_product_names:
+                    if isinstance(item, dict):
+                        entry = dict(item)
+                        entry['_branch_category'] = category
+                        entry['_branch_name'] = name
+                        if current_path:
+                            entry['path'] = current_path
+                        if current_lineage:
+                            entry['_lineage'] = current_lineage
+                        products.append(entry)
+
+            if 'product_id' in node and 'name' in node and category in known_branch_categories:
+                entry = dict(node)
+                entry['_branch_category'] = category
+                entry['_branch_name'] = name
+                if current_path:
+                    entry['path'] = current_path
+                if current_lineage:
+                    entry['_lineage'] = current_lineage
+                products.append(entry)
+
+            for branch in node.get('branches', []) or []:
+                walk(branch, current_path, current_lineage)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, path, lineage)
+
+    walk(product_tree or {}, [], [])
+    return products
+
+
+def get_product_for_match(match):
+    target_product_id = (match.product_name_id or '').strip()
+    if not target_product_id:
+        return None
+
+    for product in extract_csaf_products(match.csaf_document.product_tree):
+        if str(product.get('product_id', '')).strip() == target_product_id:
+            return product
+    return None
+
+
+def get_type_version_value(type_obj):
+    if type_obj is None:
+        return None
+
+    try:
+        type_obj._meta.get_field('version')
+        value = getattr(type_obj, 'version', None)
+        if value not in (None, ''):
+            return value
+    except FieldDoesNotExist:
+        pass
+
+    if has_custom_field(type_obj, 'hardware_name'):
+        value = (getattr(type_obj, 'custom_field_data', {}) or {}).get('hardware_name')
+        if value not in (None, ''):
+            return value
+    return None
+
+
+def get_match_asset_fields(match):
+    asset = match.related_asset
+    base = {
+        'Asset Type': match.related_asset_type,
+        'Asset': str(asset) if asset else '-',
+        'Product ID': match.product_name_id,
+    }
+
+    if match.device is not None:
+        device = match.device
+        device_type = getattr(device, 'device_type', None)
+        manufacturer = getattr(device_type, 'manufacturer', None)
+        type_version = get_type_version_value(device_type)
+        return {
+            **base,
+            'Name': getattr(device, 'name', None),
+            'Manufacturer': getattr(manufacturer, 'name', None),
+            'Model': getattr(device_type, 'model', None),
+            'Version': type_version,
+            'Part Number': getattr(device_type, 'part_number', None),
+            'Serial': getattr(device, 'serial', None),
+            'Asset Tag': getattr(device, 'asset_tag', None),
+            'Platform': str(device.platform) if getattr(device, 'platform', None) else None,
+        }
+
+    if match.module is not None:
+        module = match.module
+        module_type = getattr(module, 'module_type', None)
+        manufacturer = getattr(module_type, 'manufacturer', None)
+        type_version = get_type_version_value(module_type)
+        return {
+            **base,
+            'Name': str(module),
+            'Manufacturer': getattr(manufacturer, 'name', None),
+            'Model': getattr(module_type, 'model', None),
+            'Version': type_version,
+            'Part Number': getattr(module_type, 'part_number', None),
+            'Serial': getattr(module, 'serial', None),
+            'Asset Tag': getattr(module, 'asset_tag', None),
+        }
+
+    if match.software is not None:
+        software = match.software
+        manufacturer = getattr(software, 'manufacturer', None)
+        return {
+            **base,
+            'Name': getattr(software, 'name', None),
+            'Manufacturer': str(manufacturer) if manufacturer else None,
+            'Version': getattr(software, 'version', None),
+            'CPE': getattr(software, 'cpe', None),
+            'PURL': getattr(software, 'purl', None),
+            'Firmware': getattr(software, 'is_firmware', None),
+        }
+
+    return base
+
+
+def get_product_fields(product):
+    if not isinstance(product, dict):
+        return {}
+    helper = product.get('product_identification_helper') or {}
+    if not isinstance(helper, dict):
+        helper = {}
+    lineage = product.get('_lineage') or []
+    if not isinstance(lineage, list):
+        lineage = []
+
+    def first_list_value(value):
+        if isinstance(value, list) and value:
+            return value[0]
+        return None
+
+    def branch_name_by_category(*categories):
+        for category in categories:
+            for entry in reversed(lineage):
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get('category') == category and entry.get('name'):
+                    return entry.get('name')
+        return None
+
+    path = product.get('path') or []
+    vendor_name = branch_name_by_category('vendor')
+    product_name_branch = branch_name_by_category('product_name', 'product_family')
+    version_branch = branch_name_by_category(
+        'product_version_range',
+        'product_version',
+        'service_pack',
+        'patch_level',
+    )
+    model_number = first_list_value(helper.get('model_numbers'))
+    sku = first_list_value(helper.get('skus'))
+    serial_number = first_list_value(helper.get('serial_numbers'))
+
+    return {
+        'Product ID': product.get('product_id'),
+        'Name': product_name_branch or product.get('name'),
+        'Path': ' > '.join(path) if path else None,
+        'Manufacturer': vendor_name,
+        'CPE': helper.get('cpe'),
+        'PURL': helper.get('purl'),
+        'SKU': sku,
+        'Serial Number': serial_number,
+        'Model': model_number or product_name_branch,
+        'Version': version_branch,
+        'Canonical Product Name': product.get('name'),
+    }
+
+
+def build_match_comparison_rows(asset_fields, product_fields):
+    rows = []
+
+    def make_row(field_key, field_label, asset_value, product_value):
+        rows.append({
+            'field_key': field_key,
+            'field': field_label,
+            'asset_value': asset_value if asset_value not in (None, '') else '-',
+            'product_value': product_value if product_value not in (None, '') else '-',
+            'asset_raw': asset_value,
+            'product_raw': product_value,
+            'is_identical': asset_value == product_value,
+        })
+
+    make_row('name', 'Name', asset_fields.get('Name'), product_fields.get('Name'))
+    make_row('manufacturer', 'Manufacturer', asset_fields.get('Manufacturer'), product_fields.get('Manufacturer'))
+    make_row('model', 'Model', asset_fields.get('Model'), product_fields.get('Model'))
+    make_row('part_number', 'Part Number', asset_fields.get('Part Number'), product_fields.get('SKU'))
+    make_row('version', 'Version', asset_fields.get('Version'), product_fields.get('Version'))
+    make_row('cpe', 'CPE', asset_fields.get('CPE'), product_fields.get('CPE'))
+    make_row('purl', 'PURL', asset_fields.get('PURL'), product_fields.get('PURL'))
+    make_row('serial', 'Serial', asset_fields.get('Serial'), product_fields.get('Serial Number'))
+
+    return rows
+
+
+def get_transfer_mapping_for_match(match):
+    if match.device is not None:
+        mapping = {
+            'name': {'target': 'asset', 'attr': 'name', 'kind': 'string'},
+            'serial': {'target': 'asset', 'attr': 'serial', 'kind': 'string'},
+            'manufacturer': {'target': 'device_type', 'attr': 'manufacturer', 'kind': 'manufacturer_fk'},
+            'model': {'target': 'device_type', 'attr': 'model', 'kind': 'string'},
+            'part_number': {'target': 'device_type', 'attr': 'part_number', 'kind': 'string'},
+        }
+        device_type = getattr(match.device, 'device_type', None)
+        try:
+            if device_type is not None:
+                device_type._meta.get_field('version')
+                mapping['version'] = {'target': 'device_type', 'attr': 'version', 'kind': 'string'}
+        except FieldDoesNotExist:
+            if has_custom_field(device_type, 'hardware_name'):
+                mapping['version'] = {
+                    'target': 'device_type',
+                    'kind': 'custom_field',
+                    'custom_field_name': 'hardware_name',
+                }
+        return mapping
+    if match.module is not None:
+        mapping = {
+            'serial': {'target': 'asset', 'attr': 'serial', 'kind': 'string'},
+            'manufacturer': {'target': 'module_type', 'attr': 'manufacturer', 'kind': 'manufacturer_fk'},
+            'model': {'target': 'module_type', 'attr': 'model', 'kind': 'string'},
+            'part_number': {'target': 'module_type', 'attr': 'part_number', 'kind': 'string'},
+        }
+        module_type = getattr(match.module, 'module_type', None)
+        try:
+            if module_type is not None:
+                module_type._meta.get_field('version')
+                mapping['version'] = {'target': 'module_type', 'attr': 'version', 'kind': 'string'}
+        except FieldDoesNotExist:
+            if has_custom_field(module_type, 'hardware_name'):
+                mapping['version'] = {
+                    'target': 'module_type',
+                    'kind': 'custom_field',
+                    'custom_field_name': 'hardware_name',
+                }
+        return mapping
+    if match.software is not None:
+        return {
+            'name': {'target': 'asset', 'attr': 'name', 'kind': 'string'},
+            'manufacturer': {'target': 'asset', 'attr': 'manufacturer', 'kind': 'manufacturer_fk'},
+            'version': {'target': 'asset', 'attr': 'version', 'kind': 'string'},
+            'cpe': {'target': 'asset', 'attr': 'cpe', 'kind': 'string'},
+            'purl': {'target': 'asset', 'attr': 'purl', 'kind': 'string'},
+        }
+    return {}
+
+
+def get_transfer_target_object(match, target_label):
+    if target_label == 'asset':
+        return match.related_asset
+    if target_label == 'device_type' and match.device is not None:
+        return getattr(match.device, 'device_type', None)
+    if target_label == 'module_type' and match.module is not None:
+        return getattr(match.module, 'module_type', None)
+    return None
+
+
+def is_type_level_transfer_target(target_label):
+    return target_label in ('device_type', 'module_type')
+
+
+def has_change_permission_for_object(user, obj):
+    if obj is None:
+        return False
+    return user.has_perm(f'{obj._meta.app_label}.change_{obj._meta.model_name}')
+
+
+def has_custom_field(obj, field_name):
+    if obj is None:
+        return False
+    return obj.custom_fields.filter(name=field_name).exists()
+
+
+def can_edit_related_asset(user, match):
+    mapping = get_transfer_mapping_for_match(match)
+    if not mapping:
+        return False
+    for spec in mapping.values():
+        target_obj = get_transfer_target_object(match, spec.get('target'))
+        if has_change_permission_for_object(user, target_obj):
+            return True
+    return False
+
+
+def transfer_product_value_to_asset(match, field_key, comparison_rows, transfer_value=None):
+    mapping = get_transfer_mapping_for_match(match)
+    spec = mapping.get(field_key)
+    if not spec:
+        return False, 'This field is not transferable for the matched asset type.'
+    target_label = spec.get('target')
+    target_obj = get_transfer_target_object(match, target_label)
+    target_attr = spec.get('attr')
+    value_kind = spec.get('kind', 'string')
+    custom_field_name = spec.get('custom_field_name')
+
+    if target_obj is None:
+        return False, 'Could not resolve transfer target for this field.'
+
+    row = next((entry for entry in comparison_rows if entry['field_key'] == field_key), None)
+    if row is None:
+        return False, 'Unknown comparison field.'
+
+    value = transfer_value if transfer_value is not None else row.get('product_raw')
+    if value in (None, ''):
+        return False, 'The CSAF product field is empty and cannot be transferred.'
+
+    if value_kind == 'manufacturer_fk':
+        manufacturer = Manufacturer.objects.filter(name__iexact=str(value).strip()).first()
+        if manufacturer is None:
+            return False, f'No manufacturer named "{value}" exists in NetBox.'
+        setattr(target_obj, target_attr, manufacturer)
+        target_obj.save(update_fields=[target_attr])
+        changed_field = target_attr
+    elif value_kind == 'custom_field':
+        if not custom_field_name:
+            return False, 'Invalid custom field transfer configuration.'
+        if not has_custom_field(target_obj, custom_field_name):
+            return False, f'Custom field "{custom_field_name}" is not configured for this object.'
+        custom_field_data = dict(getattr(target_obj, 'custom_field_data', {}) or {})
+        custom_field_data[custom_field_name] = value
+        target_obj.custom_field_data = custom_field_data
+        target_obj.save(update_fields=['custom_field_data'])
+        changed_field = f'custom_field_data.{custom_field_name}'
+    else:
+        if not target_attr:
+            return False, 'Invalid transfer target field.'
+        setattr(target_obj, target_attr, value)
+        target_obj.save(update_fields=[target_attr])
+        changed_field = target_attr
+
+    if is_type_level_transfer_target(target_label):
+        return True, (
+            f'Updated {target_obj._meta.verbose_name} field "{changed_field}" from CSAF product data. '
+            'This changed a type definition, not only a single instance.'
+        )
+    return True, f'Updated {target_obj._meta.verbose_name} field "{changed_field}" from CSAF product data.'
+
+
+@register_model_view(models.CsafMatch, name='comparison', path='comparison')
+class CsafMatchComparisonView(generic.ObjectView):
+    queryset = models.CsafMatch.objects.select_related(
+        'device',
+        'device__device_type',
+        'device__device_type__manufacturer',
+        'module',
+        'module__module_type',
+        'module__module_type__manufacturer',
+        'software',
+        'software__manufacturer',
+        'csaf_document',
+    )
+    template_name = 'csaf/csafmatch_comparison.html'
+
+    def render_comparison_page(self, request, instance, transfer_edit_field='', transfer_edit_value=''):
+        product = get_product_for_match(instance)
+        asset_fields = get_match_asset_fields(instance)
+        product_fields = get_product_fields(product)
+        comparison_rows = build_match_comparison_rows(asset_fields, product_fields)
+        transfer_mapping = get_transfer_mapping_for_match(instance)
+        can_transfer = can_edit_related_asset(request.user, instance)
+
+        for row in comparison_rows:
+            row_spec = transfer_mapping.get(row['field_key'])
+            row_target = get_transfer_target_object(instance, row_spec.get('target')) if row_spec else None
+            row['edits_type_definition'] = bool(row_spec and is_type_level_transfer_target(row_spec.get('target')))
+            row['transferable'] = bool(
+                row_spec is not None
+                and has_change_permission_for_object(request.user, row_target)
+                and row['product_raw'] not in (None, '')
+                and not row['is_identical']
+            )
+            if transfer_edit_field and row['field_key'] == transfer_edit_field:
+                row['edit_value'] = transfer_edit_value if transfer_edit_value is not None else row['product_raw']
+            else:
+                row['edit_value'] = row['product_raw']
+
+        return render(request, self.get_template_name(), {
+            'object': instance,
+            'asset': instance.related_asset,
+            'tab': self.tab,
+            'asset_fields': asset_fields,
+            'product_fields': product_fields,
+            'comparison_rows': comparison_rows,
+            'product': product,
+            'can_transfer': can_transfer,
+            'transfer_edit_field': transfer_edit_field,
+            **self.get_extra_context(request, instance),
+        })
+
+    def post(self, request, **kwargs):
+        instance = self.get_object(**kwargs)
+        action = request.POST.get('transfer_action', '')
+        field_key = request.POST.get('transfer_field', '')
+        if not field_key:
+            messages.error(request, 'Missing transfer field.')
+            return redirect(request.path)
+        mapping = get_transfer_mapping_for_match(instance)
+        spec = mapping.get(field_key)
+        if not spec:
+            messages.error(request, 'This field is not transferable.')
+            return redirect(request.path)
+        target_obj = get_transfer_target_object(instance, spec.get('target'))
+        if not has_change_permission_for_object(request.user, target_obj):
+            return self.handle_no_permission()
+
+        if action == 'prepare':
+            transfer_value = request.POST.get('transfer_value')
+            return self.render_comparison_page(
+                request,
+                instance,
+                transfer_edit_field=field_key,
+                transfer_edit_value=transfer_value,
+            )
+
+        if action == 'apply':
+            transfer_value = request.POST.get('transfer_value')
+            if is_type_level_transfer_target(spec.get('target')):
+                messages.warning(
+                    request,
+                    'You are editing a type definition (Device Type / Module Type), not only this single instance.',
+                )
+            comparison_rows = build_match_comparison_rows(
+                get_match_asset_fields(instance),
+                get_product_fields(get_product_for_match(instance)),
+            )
+            ok, msg = transfer_product_value_to_asset(
+                instance,
+                field_key,
+                comparison_rows,
+                transfer_value=transfer_value,
+            )
+            if ok:
+                messages.success(request, msg)
+            else:
+                messages.error(request, msg)
+            return redirect(request.path)
+
+        messages.error(request, 'Unknown transfer action.')
+        return redirect(request.path)
+
+    def get(self, request, **kwargs):
+        instance = self.get_object(**kwargs)
+        return self.render_comparison_page(request, instance)
+
+
+
 
 
 # New CsafMatches view for one Device
@@ -1476,6 +1999,7 @@ class CsafNewMatchListForDeviceView(CsafMatchListFor):
     queryset = Device.objects.all()
     table = tables.CsafMatchListForDeviceTable
     linkName= 'device'
+    comparison_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -1507,6 +2031,7 @@ class CsafConfirmedMatchListForDeviceView(CsafMatchListFor):
     queryset = Device.objects.all()
     table = tables.CsafMatchListForDeviceTable
     linkName= 'device'
+    comparison_column_mode = 'rightmost'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -1534,6 +2059,7 @@ class CsafNewMatchListForModuleView(CsafMatchListFor):
     queryset = Module.objects.all()
     table = tables.CsafMatchListForModuleTable
     linkName= 'module'
+    comparison_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -1565,6 +2091,7 @@ class CsafMatchListForModuleView(CsafMatchListFor):
     queryset = Module.objects.all()
     table = tables.CsafMatchListForModuleTable
     linkName= 'module'
+    comparison_column_mode = 'rightmost'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -1591,6 +2118,7 @@ class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafMatchListForCsafDocumentTable
     linkName= 'document'
+    comparison_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -1622,6 +2150,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafMatchListForCsafDocumentTable
     linkName= 'document'
+    comparison_column_mode = 'rightmost'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -1669,6 +2198,7 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
     queryset = Software.objects.all()
     table = tables.CsafMatchListForSoftwareTable
     linkName= 'software'
+    comparison_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -1694,6 +2224,7 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
     queryset = Software.objects.all()
     table = tables.CsafMatchListForSoftwareTable
     linkName= 'software'
+    comparison_column_mode = 'rightmost'
 
     tab = ViewTab(
         label='CSAF Matches',
