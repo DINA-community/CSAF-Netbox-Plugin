@@ -53,7 +53,12 @@
           </div>
 
           {% if row.running %}
-            <h6 class="mb-2">Running Tasks</h6>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <h6 class="mb-0">Running Tasks</h6>
+              {% if row.canStop %}
+                <a class="btn btn-sm btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop All</a>
+              {% endif %}
+            </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
@@ -153,7 +158,7 @@
             </div>
           {% endif %}
 
-          {% if row.component == "matcher" and row.is_stopped and row.canStart %}
+          {% if row.component == "matcher" and row.canStart %}
             <form method="post" action="{{ request.path }}" class="w-100">
               {% csrf_token %}
               <input type="hidden" name="start" value="{{ row.index }}">
@@ -222,11 +227,8 @@
             </form>
           {% else %}
             <div class="d-flex flex-wrap gap-2 align-items-start">
-              {% if row.is_stopped and row.canStart %}
+              {% if row.canStart %}
                 <a class="btn btn-primary" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>
-              {% endif %}
-              {% if row.is_running and row.canStop %}
-                <a class="btn btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>
               {% endif %}
               {% if row.clear and row.canClear %}
                 {% for key,item in row.clear.items %}
