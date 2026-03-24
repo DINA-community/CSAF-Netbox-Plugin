@@ -1301,7 +1301,7 @@ def setAcceptedStatusFor(queryset, matchId, targetStatus, request):
             if targetStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 doc = csafMatch.csaf_document
                 data = gatherProductInfoFromDoc(doc, csafMatch.product_name_id)
-                createDocumentForData(csafMatch, data)
+                createFindingsFromData(csafMatch, data)
     messages.success(request, f"Updated {count} CSAF-Matches")
 
 
@@ -1336,8 +1336,8 @@ def gatherProductInfoFromBranch(branch, productNameId):
 
 def addDataFromBranch(branch, data):
     if branch.get('category'):
-        category = branch.get('category')
-        if not data[category]:
+        category = branch.get('category', None)
+        if category and not data.get(category):
             data[category] = branch.get('name')
     if branch.get('product_id'):
         data['product_name'] = branch.get('name')
