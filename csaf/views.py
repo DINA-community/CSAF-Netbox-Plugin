@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import logging
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
@@ -41,6 +42,106 @@ COMPONENT_LABELS = {
     'matcher': 'Matcher',
     'sync': 'Synchronizer',
 }
+
+MATCHER_WEIGHT_FIELD_GROUPS = [
+    {
+        'title': 'database.freetext_fields',
+        'path': ['database', 'freetext_fields'],
+        'fields': [
+            {'name': 'name', 'default': 0.20},
+            {'name': 'hardware_name', 'default': 0.17},
+            {'name': 'manufacturer_name', 'default': 0.08},
+            {'name': 'device_family', 'default': 0.01},
+        ],
+    },
+    {
+        'title': 'database.freetext_fields_weights',
+        'path': ['database', 'freetext_fields_weights'],
+        'fields': [
+            {'name': 'token', 'default': 0.5},
+            {'name': 'ngram', 'default': 0.3},
+            {'name': 'overlap', 'default': 0.2},
+        ],
+    },
+    {
+        'title': 'database.ordered_fields',
+        'path': ['database', 'ordered_fields'],
+        'fields': [
+            {'name': 'version', 'default': 0.10},
+            {'name': 'model', 'default': 0.03},
+            {'name': 'model_numbers', 'default': 0.03},
+            {'name': 'part_numbers', 'default': 0.03},
+            {'name': 'serial_numbers', 'default': 0.03},
+        ],
+    },
+    {
+        'title': 'database.other_fields',
+        'path': ['database', 'other_fields'],
+        'fields': [
+            {'name': 'cpe', 'default': 0.15},
+            {'name': 'purl', 'default': 0.13},
+            {'name': 'product_type', 'default': 0.02},
+            {'name': 'sbom_urls', 'default': 0.01},
+        ],
+    },
+    {
+        'title': 'version.weights',
+        'path': ['version', 'weights'],
+        'fields': [
+            {'name': 'raw', 'default': 0.0},
+            {'name': 'package', 'default': 0.15},
+            {'name': 'release_prefix', 'default': 0.03},
+            {'name': 'release_number', 'default': 0.25},
+            {'name': 'release_branch', 'default': 0.05},
+            {'name': 'build_number', 'default': 0.04},
+            {'name': 'qualifier', 'default': 0.03},
+            {'name': 'architecture', 'default': 0.05},
+            {'name': 'date', 'default': 0.02},
+            {'name': 'epoch', 'default': 0.03},
+            {'name': 'min_max_version', 'default': 0.35},
+        ],
+    },
+    {
+        'title': 'cpe.weights',
+        'path': ['cpe', 'weights'],
+        'fields': [
+            {'name': 'raw', 'default': 0.01},
+            {'name': 'part', 'default': 0.05},
+            {'name': 'vendor', 'default': 0.15},
+            {'name': 'product', 'default': 0.35},
+            {'name': 'version', 'default': 0.30},
+            {'name': 'update', 'default': 0.05},
+            {'name': 'edition', 'default': 0.02},
+            {'name': 'language', 'default': 0.00},
+            {'name': 'sw_edition', 'default': 0.02},
+            {'name': 'target_sw', 'default': 0.02},
+            {'name': 'target_hw', 'default': 0.02},
+            {'name': 'other', 'default': 0.01},
+        ],
+    },
+    {
+        'title': 'purl.weights',
+        'path': ['purl', 'weights'],
+        'fields': [
+            {'name': 'raw', 'default': 0.02},
+            {'name': 'type', 'default': 0.15},
+            {'name': 'namespace', 'default': 0.10},
+            {'name': 'name', 'default': 0.35},
+            {'name': 'version', 'default': 0.30},
+            {'name': 'qualifiers', 'default': 0.05},
+            {'name': 'subpath', 'default': 0.03},
+        ],
+    },
+    {
+        'title': 'ngram.weights',
+        'path': ['ngram', 'weights'],
+        'fields': [
+            {'name': '1', 'default': 0.2},
+            {'name': '2', 'default': 0.3},
+            {'name': '3', 'default': 0.5},
+        ],
+    },
+]
 
 
 def normalize_component_name(value):
@@ -220,6 +321,7 @@ class Synchronisers(View):
             lastRunStr = status.get('last_matching')
             lastRunStr = status.get('last_synchronization', lastRunStr)
             runState = status.get('state', 'Unknown')
+            runStateNormalized = str(runState).strip().lower()
             startedStr = status.get('start', None)
             if startedStr is None:
                 started = '-'
@@ -233,6 +335,8 @@ class Synchronisers(View):
                 'name': name,
                 'lastSync': lastSync,
                 'state': runState,
+                'is_stopped': runStateNormalized == 'stopped',
+                'is_running': runStateNormalized == 'running',
                 'started': started,
                 'index': idx,
             }
@@ -245,6 +349,7 @@ class Synchronisers(View):
             if isMatcher:
                 systemData['clear'] = CLEAR_TABLE
                 systemData['info'] = buildInfoStringMatcher(system, status)
+                systemData['matcher_weight_field_groups'] = MATCHER_WEIGHT_FIELD_GROUPS
                 running_tasks = status.get('running', [])
                 systemData['running'] = running_tasks
                 systemData['running_summary'] = {
@@ -267,6 +372,59 @@ class Synchronisers(View):
             'data': data,
             'error_help': error_help,
         })
+
+    def post(self, request):
+        if not request.user.has_perm(RIGHT_SYNC_VIEW):
+            raise PermissionsViolation(f'User does not have permission {RIGHT_SYNC_VIEW}')
+
+        systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'synchronisers', 'urls'), [])
+        if result := maybeStartSystem(systems, request):
+            return result
+        if result := maybeStopSystem(systems, request):
+            return result
+        if result := maybeTriggerMatch(systems, request):
+            return result
+        if result := maybeClear(systems, request):
+            return result
+        return redirect(request.path)
+
+
+def getRequestValue(request, key, default=None):
+    if request.method == 'POST':
+        return request.POST.get(key, request.GET.get(key, default))
+    return request.GET.get(key, default)
+
+
+def parseBool(value):
+    if value is None:
+        return None
+    return str(value).strip().lower() in ('1', 'true', 'on', 'yes')
+
+
+def parseMatcherWeightFields(request):
+    matching_config = {}
+    for key, raw_value in request.POST.items():
+        if not key.startswith('weight__'):
+            continue
+        value = str(raw_value).strip()
+        if value == '':
+            continue
+
+        path = key.split('__')[1:]
+        if len(path) == 0:
+            continue
+        try:
+            weight = float(value)
+        except ValueError:
+            raise ValueError(f'Invalid number for {key}: {raw_value}')
+
+        target = matching_config
+        for part in path[:-1]:
+            if part not in target or not isinstance(target[part], dict):
+                target[part] = {}
+            target = target[part]
+        target[path[-1]] = weight
+    return matching_config
 
 
 def getIsdubaBaseUrl():
@@ -527,7 +685,7 @@ def buildInfoStringMatcher(system, status):
 
 
 def maybeTriggerMatch(systems, request):
-    trigger = request.GET.get('trigger', None)
+    trigger = getRequestValue(request, 'trigger', None)
     if (trigger is not None):
         print("Triggering...")
         for system in systems:
@@ -542,9 +700,9 @@ def maybeTriggerMatch(systems, request):
 
 
 def triggerMatcher(request, system, token):
-    device = request.GET.get('device', -1)
-    module = request.GET.get('module', -1)
-    software = request.GET.get('software', -1)
+    device = getRequestValue(request, 'device', -1)
+    module = getRequestValue(request, 'module', -1)
+    software = getRequestValue(request, 'software', -1)
 
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
@@ -554,11 +712,11 @@ def triggerMatcher(request, system, token):
     try:
         assets = []
         csaf_documents = []
-        addUrlForDocument(csaf_documents, request.GET.get('document', None))
-        addUrlForDevice(assets, request.GET.get('device', None), system)
-        addUrlForModule(assets, request.GET.get('module', None), system)
-        addUrlForDeviceType(assets, request.GET.get('deviceType', None), system)
-        addUrlForSoftware(assets, request.GET.get('software', None), system)
+        addUrlForDocument(csaf_documents, getRequestValue(request, 'document', None))
+        addUrlForDevice(assets, getRequestValue(request, 'device', None), system)
+        addUrlForModule(assets, getRequestValue(request, 'module', None), system)
+        addUrlForDeviceType(assets, getRequestValue(request, 'deviceType', None), system)
+        addUrlForSoftware(assets, getRequestValue(request, 'software', None), system)
         response = requests.post(
             startUrl,
             headers={'Authorization': 'Bearer ' + token},
@@ -671,7 +829,7 @@ def addUrlForDocument(list, id):
 
 def maybeStartSystem(systems, request):
     try:
-        startStr = request.GET.get('start', -1)
+        startStr = getRequestValue(request, 'start', -1)
         startIdx = int(startStr)
         if startIdx >= 0 and startIdx < len(systems):
             if not request.user.has_perm(RIGHT_SYNC_START):
@@ -679,25 +837,68 @@ def maybeStartSystem(systems, request):
                 return
 
             system = systems[startIdx]
+            matchingConfig = None
+            forceRecompute = None
+            matchingConfigMode = getRequestValue(request, 'matching_config_mode', 'json')
+            if matchingConfigMode == 'fields':
+                try:
+                    matchingConfig = parseMatcherWeightFields(request)
+                except ValueError as ex:
+                    messages.error(request, str(ex))
+                    return redirect(request.path)
+                if len(matchingConfig) == 0:
+                    matchingConfig = None
+            else:
+                matchingConfigRaw = getRequestValue(request, 'matching_config', None)
+                if matchingConfigRaw is not None and str(matchingConfigRaw).strip() != '':
+                    try:
+                        matchingConfig = json.loads(matchingConfigRaw)
+                    except json.JSONDecodeError as ex:
+                        messages.error(request, f'Invalid matcher weight JSON: {ex}')
+                        return redirect(request.path)
+                    if not isinstance(matchingConfig, dict):
+                        messages.error(request, 'Invalid matcher weight JSON: expected JSON object')
+                        return redirect(request.path)
+            forceRecompute = parseBool(getRequestValue(request, 'force_recompute', None))
+
             (token, msg) = getSyncToken(request, system)
             if token is not None:
-                startSystem(request, system, token)
+                startSystem(
+                    request,
+                    system,
+                    token,
+                    matchingConfig=matchingConfig,
+                    forceRecompute=forceRecompute,
+                )
             return redirect(request.path)
     except ValueError:
         messages.error(request, f"Not an int: {startStr}")
 
 
-def startSystem(request, system, token):
+def startSystem(request, system, token, matchingConfig=None, forceRecompute=None):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
+    isMatcher = getFromJson(system, ('isMatcher',), False)
     startUrl = f"{baseUrl}/task/start"
     try:
+        requestPayload = {}
+        if isMatcher and matchingConfig is not None:
+            requestPayload['matching_config'] = matchingConfig
+        if isMatcher and forceRecompute is not None:
+            requestPayload['force_recompute'] = forceRecompute
+
+        requestArgs = {
+            'headers': {'Authorization': 'Bearer ' + token},
+            'verify': verifySsl,
+        }
+        if requestPayload:
+            requestArgs['json'] = requestPayload
+
         response = requests.post(
             startUrl,
-            headers={'Authorization': 'Bearer ' + token},
-            verify=verifySsl,
+            **requestArgs,
         )
         if (response.status_code < 200 or response.status_code >= 300):
             messages.error(request, f"Failed to start {name}: {response.text}")
@@ -710,7 +911,7 @@ def startSystem(request, system, token):
 
 def maybeStopSystem(systems, request):
     try:
-        stopStr = request.GET.get('stop', -1)
+        stopStr = getRequestValue(request, 'stop', -1)
         stopIdx = int(stopStr)
         if stopIdx >= 0 and stopIdx < len(systems):
             if not request.user.has_perm(RIGHT_SYNC_STOP):
@@ -732,7 +933,7 @@ def stopSystem(request, system, token):
     name = getFromJson(system, ('name',), 'Unnamed')
     url = f"{baseUrl}/task/stop"
     try:
-        taskIdStr = request.GET.get('task_id', -1)
+        taskIdStr = getRequestValue(request, 'task_id', -1)
         taskId = int(taskIdStr)
     except ValueError:
         taskId = -1
@@ -756,7 +957,7 @@ def stopSystem(request, system, token):
 
 def maybeClear(systems, request):
     try:
-        clearStr = request.GET.get('clear', None)
+        clearStr = getRequestValue(request, 'clear', None)
         if clearStr is None:
             return False
         if not request.user.has_perm(RIGHT_SYNC_CLEAR):
@@ -765,7 +966,7 @@ def maybeClear(systems, request):
         if not clearStr in CLEAR_TABLE:
             messages.error(request, f"Unknown clear command: {clearStr}")
             return False
-        idxStr = request.GET.get('idx', -1)
+        idxStr = getRequestValue(request, 'idx', -1)
         clearIdx = int(idxStr)
         if clearIdx >= 0 and clearIdx < len(systems):
             system = systems[clearIdx]

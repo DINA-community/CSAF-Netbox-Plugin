@@ -99,19 +99,88 @@
             </div>
           {% endif %}
 
-          <div class="d-flex flex-wrap gap-2">
-            {% if row.state == "stopped" and row.canStart %}
-              <a class="btn btn-primary" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>
-            {% endif %}
-            {% if row.state == "running" and row.canStop %}
-              <a class="btn btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>
-            {% endif %}
-            {% if row.clear and row.canClear %}
-              {% for key,item in row.clear.items %}
-                <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
-              {% endfor %}
-            {% endif %}
-          </div>
+          {% if row.component == "matcher" and row.is_stopped and row.canStart %}
+            <form method="post" action="{{ request.path }}" class="w-100">
+              {% csrf_token %}
+              <input type="hidden" name="start" value="{{ row.index }}">
+              <div class="d-flex flex-wrap gap-2 align-items-start">
+                <button class="btn btn-primary" type="submit">Start</button>
+                {% if row.clear and row.canClear %}
+                  {% for key,item in row.clear.items %}
+                    <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
+                  {% endfor %}
+                {% endif %}
+              </div>
+
+              <details class="mt-2">
+                <summary>Advanced options</summary>
+                <div class="mt-2" style="min-width: 22rem;">
+                  <label class="form-label mb-1" for="matching-config-mode-{{ row.index }}">Weight input mode</label>
+                  <select
+                    class="form-select form-select-sm mb-2"
+                    id="matching-config-mode-{{ row.index }}"
+                    name="matching_config_mode"
+                    data-matching-mode-select
+                    data-json-target="matching-config-json-{{ row.index }}"
+                    data-fields-target="matching-config-fields-{{ row.index }}">
+                    <option value="json" selected>Free-text JSON</option>
+                    <option value="fields">Individual fields</option>
+                  </select>
+
+                  <div id="matching-config-json-{{ row.index }}" data-matching-mode-panel="json">
+                    <label class="form-label mb-1" for="matching-config-{{ row.index }}">Custom matcher weights (optional JSON)</label>
+                    <textarea
+                      class="form-control form-control-sm"
+                      id="matching-config-{{ row.index }}"
+                      name="matching_config"
+                      rows="4"
+                      placeholder='{"database":{"freetext_fields_weights":{"token":0.7,"ngram":0.2,"overlap":0.1}}}'></textarea>
+                  </div>
+
+                  <div id="matching-config-fields-{{ row.index }}" data-matching-mode-panel="fields" style="display:none;">
+                    {% for group in row.matcher_weight_field_groups %}
+                      <div class="border rounded p-2 mb-2">
+                        <div class="fw-semibold small mb-2">{{ group.title }}</div>
+                        <div class="row g-2">
+                          {% for field in group.fields %}
+                            <div class="col-sm-6 col-lg-4">
+                              <label class="form-label form-label-sm mb-1" for="weight-{{ row.index }}-{{ group.title|slugify }}-{{ field.name }}">{{ field.name }}</label>
+                              <input
+                                class="form-control form-control-sm"
+                                type="number"
+                                step="any"
+                                id="weight-{{ row.index }}-{{ group.title|slugify }}-{{ field.name }}"
+                                name="weight__{{ group.path|join:'__' }}__{{ field.name }}"
+                                value="{{ field.default }}">
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="true" id="force-recompute-{{ row.index }}" name="force_recompute">
+                    <label class="form-check-label" for="force-recompute-{{ row.index }}">Force recompute</label>
+                  </div>
+                </div>
+              </details>
+            </form>
+          {% else %}
+            <div class="d-flex flex-wrap gap-2 align-items-start">
+              {% if row.is_stopped and row.canStart %}
+                <a class="btn btn-primary" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>
+              {% endif %}
+              {% if row.is_running and row.canStop %}
+                <a class="btn btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>
+              {% endif %}
+              {% if row.clear and row.canClear %}
+                {% for key,item in row.clear.items %}
+                  <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -140,4 +209,27 @@
   </div>
 </div>
 {% endif %}
+<script>
+  (function() {
+    function updateMatchingMode(selectEl) {
+      var jsonTargetId = selectEl.getAttribute('data-json-target');
+      var fieldsTargetId = selectEl.getAttribute('data-fields-target');
+      var jsonPanel = document.getElementById(jsonTargetId);
+      var fieldsPanel = document.getElementById(fieldsTargetId);
+      if (!jsonPanel || !fieldsPanel) {
+        return;
+      }
+      var mode = selectEl.value;
+      jsonPanel.style.display = mode === 'json' ? '' : 'none';
+      fieldsPanel.style.display = mode === 'fields' ? '' : 'none';
+    }
+
+    document.querySelectorAll('[data-matching-mode-select]').forEach(function(selectEl) {
+      updateMatchingMode(selectEl);
+      selectEl.addEventListener('change', function() {
+        updateMatchingMode(selectEl);
+      });
+    });
+  })();
+</script>
 {% endblock %}
