@@ -142,16 +142,16 @@ class CsafDocumentTable(NetBoxTable):
         accessor='docurl',
         verbose_name='Link')
     new_count = tables.Column(
-        verbose_name=_('New Matches')
+        verbose_name=_('New')
     )
     confirmed_count = tables.Column(
-        verbose_name=_('Confirmed Matches')
+        verbose_name=_('Confirmed')
     )
     reopened_count = tables.Column(
-        verbose_name=_('Reopened Matches')
+        verbose_name=_('Reopened')
     )
     resolved_count = tables.Column(
-        verbose_name=_('Resolved Matches')
+        verbose_name=_('False Positive')
     )
     total_count = tables.Column(
         verbose_name=_('Total Matches')
