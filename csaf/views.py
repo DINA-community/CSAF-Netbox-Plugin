@@ -15,6 +15,8 @@ from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
 from netbox.views import generic
+from dcim.filtersets import DeviceFilterSet
+from dcim.forms.filtersets import DeviceFilterForm
 from utilities.exceptions import PermissionsViolation
 from utilities.htmx import htmx_partial
 from utilities.tables import get_table_configs
@@ -3041,7 +3043,8 @@ class DeviceListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.DevicesWithMatchTable
-
+    filterset = DeviceFilterSet
+    filterset_form = DeviceFilterForm
 
 @register_model_view(Module, name='withmatches', path='withmatches', detail=False)
 class ModuleListWithCsafMatches(generic.ObjectListView):
