@@ -6,6 +6,8 @@ from django.core.exceptions import FieldDoesNotExist
 import requests
 import time
 from csaf.api.views import getFromJson, getToken, createDocumentForData
+from dcim.filtersets import DeviceFilterSet, ModuleFilterSet
+from dcim.forms.filtersets import DeviceFilterForm, ModuleFilterForm
 from dcim.models import Device, DeviceType, Module, Manufacturer
 from django.contrib import messages
 from django.db import transaction
@@ -15,13 +17,13 @@ from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
 from netbox.views import generic
-from dcim.filtersets import DeviceFilterSet
-from dcim.forms.filtersets import DeviceFilterForm
 from utilities.exceptions import PermissionsViolation
 from utilities.htmx import htmx_partial
 from utilities.tables import get_table_configs
 from utilities.views import ViewTab, register_model_view, GetReturnURLMixin
 from . import forms, models, tables, filtersets
+from d3c.filtersets import SoftwareFilterSet
+from d3c.forms import SoftwareFilterForm
 from d3c.models import Software
 
 OK_LABEL = 'OK'
@@ -3084,6 +3086,8 @@ class ModuleListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.ModulesWithMatchTable
+    filterset = ModuleFilterSet
+    filterset_form = ModuleFilterForm
 
 
 @register_model_view(Software, name='withmatches', path='withmatches', detail=False)
@@ -3124,3 +3128,5 @@ class SoftwareListWithCsafMatches(generic.ObjectListView):
                     .values('c'))
         ).filter(total_count__gt=0)
     table = tables.SoftwareWithMatchTable
+    filterset = SoftwareFilterSet
+    filterset_form = SoftwareFilterForm
