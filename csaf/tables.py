@@ -5,6 +5,7 @@ import django_tables2 as tables
 from dcim.models import Device, Module
 from dcim.tables.devices import DeviceTable
 from dcim.tables.modules import ModuleTable
+from django.db.models import F
 from django.urls import reverse
 from django.shortcuts import render
 from django.middleware.csrf import get_token
@@ -628,6 +629,10 @@ class CsafVulnerabilityTable(NetBoxTable):
 
     def render_cvss_base_score(self, record):
         return record.cvss_badge
+
+    def order_cvss_base_score(self, queryset, is_descending):
+        order = F('cvss_base_score').desc(nulls_last=True) if is_descending else F('cvss_base_score').asc(nulls_last=True)
+        return queryset.order_by(order, 'id'), True
 
 
 class CsafAssetVulnerabilityTable(NetBoxTable):
