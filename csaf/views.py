@@ -1742,7 +1742,8 @@ class CsafConfirmedMatchListView(CsafMatchListView):
 class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     child_model = models.CsafMatch
     filterset = filtersets.CsafMatchFilterSet
-    base_template = 'generic/object_children.html'
+    filterset_form = forms.CsafMatchFilterForm
+    base_template = 'generic/object_list.html'
     template_name = 'csaf/csafmatch_list.html'
     linkName = 'None'
     comparison_column_mode = 'hide'
@@ -1901,6 +1902,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             'statusString': statusString,
             'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
             'return_url': return_url,
+            'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             **self.get_extra_context(request, instance),
         })
 
