@@ -130,9 +130,9 @@ class CsafDocumentTable(NetBoxTable):
     class Meta(NetBoxTable.Meta):
         model = CsafDocument
         fields = ('id', 'title', 'tracking_id', 'docurl', 'version', 'lang', 'publisher',
-                  'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+                  'new_count', 'confirmed_count', 'resolved_count', 'total_count')
         default_columns = ('id', 'title', 'tracking_id', 'docurl', 'link', 'version', 'lang', 'publisher',
-                           'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+                           'new_count', 'confirmed_count', 'resolved_count', 'total_count')
 
     title = tables.Column(
         linkify=True,
@@ -146,9 +146,6 @@ class CsafDocumentTable(NetBoxTable):
     )
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed')
-    )
-    reopened_count = tables.Column(
-        verbose_name=_('Reopened')
     )
     resolved_count = tables.Column(
         verbose_name=_('False Positive')
@@ -542,9 +539,6 @@ class DevicesWithMatchTable(DeviceTable):
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed Matches')
     )
-    reopened_count = tables.Column(
-        verbose_name=_('Reopened Matches')
-    )
     resolved_count = tables.Column(
         verbose_name=_('Resolved Matches')
     )
@@ -559,8 +553,8 @@ class DevicesWithMatchTable(DeviceTable):
             'device_bay_position', 'position', 'face', 'latitude', 'longitude', 'airflow', 'primary_ip', 'primary_ip4',
             'primary_ip6', 'oob_ip', 'cluster', 'virtual_chassis', 'vc_position', 'vc_priority', 'description',
             'config_template', 'comments', 'contacts', 'tags', 'created', 'last_updated',
-            'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+            'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'name', 'description', 'status', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
 
 
 class ModulesWithMatchTable(ModuleTable):
@@ -573,9 +567,6 @@ class ModulesWithMatchTable(ModuleTable):
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed Matches')
     )
-    reopened_count = tables.Column(
-        verbose_name=_('Reopened Matches')
-    )
     resolved_count = tables.Column(
         verbose_name=_('Resolved Matches')
     )
@@ -587,8 +578,8 @@ class ModulesWithMatchTable(ModuleTable):
         model = Module
         fields = ('pk', 'id', 'device', 'module_bay', 'manufacturer', 'module_type', 'status', 'serial', 'asset_tag',
             'description', 'comments', 'tags', 'created', 'last_updated',
-            'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'device', 'module_bay', 'manufacturer', 'module_type', 'status', 'serial', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+            'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'device', 'module_bay', 'manufacturer', 'module_type', 'status', 'serial', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
 
 
 class SynchroniserTable(NetBoxTable):
@@ -607,9 +598,6 @@ class SoftwareWithMatchTable(SoftwareTable):
     confirmed_count = tables.Column(
         verbose_name=_('Confirmed Matches')
     )
-    reopened_count = tables.Column(
-        verbose_name=_('Reopened Matches')
-    )
     resolved_count = tables.Column(
         verbose_name=_('Resolved Matches')
     )
@@ -621,8 +609,8 @@ class SoftwareWithMatchTable(SoftwareTable):
         model = Software
         fields = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'cpe',  'purl',
                   'sbom_url_count', 'hashes_count', 'xgenericuri_count', 'parent_rel_count', 'target_rel_count',
-                  'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
-        default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'reopened_count', 'resolved_count', 'total_count')
+                  'new_count', 'confirmed_count', 'resolved_count', 'total_count')
+        default_columns = ('id', 'name', 'manufacturer', 'is_firmware', 'version', 'new_count', 'confirmed_count', 'resolved_count', 'total_count')
 
 
 class CsafVulnerabilityTable(NetBoxTable):
