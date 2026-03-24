@@ -356,6 +356,8 @@ class Synchronisers(View):
                     'running': sum(1 for item in running_tasks if item.get('state') == 'running'),
                     'other': sum(1 for item in running_tasks if item.get('state') != 'running'),
                 }
+                history = getMatcherHistory(request, system, token, limit=1000)
+                systemData['history'] = history or []
             elif 'total_products_fetched' in status:
                 systemData['info'] = buildInfoStringCsafSync(system, status)
             if request.user.has_perm(RIGHT_SYNC_START):
@@ -1078,6 +1080,61 @@ def getRunningMatchers(request, system, token):
         return result
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to fetch running tasks of {name}: {ex}")
+
+
+def getMatcherHistory(request, system, token, limit=1000):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'synchronisers', 'verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
+
+    name = getFromJson(system, ('name',), 'Unnamed')
+    history_url = f"{baseUrl}/task/history"
+    try:
+        response = requests.get(
+            history_url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+            params={'limit': limit},
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to fetch run history of {name}: {response.text}")
+            return []
+
+        result = response.json()
+        for item in result:
+            started = item.get('start_time')
+            finished = item.get('finished_at')
+            if started is not None:
+                item['start_time'] = datetime.fromtimestamp(started)
+            if finished is not None:
+                item['finished_at'] = datetime.fromtimestamp(finished)
+
+            trigger = str(item.get('trigger', '')).strip().lower()
+            if trigger == 'manual':
+                item['trigger_label'] = 'Manual'
+            elif trigger in ('schedule', 'scheduled', 'automatic', 'auto'):
+                item['trigger_label'] = 'Automatic'
+            elif trigger != '':
+                item['trigger_label'] = trigger.capitalize()
+            else:
+                item['trigger_label'] = '-'
+
+            aCount = len(item.get('assets', []))
+            dCount = len(item.get('csaf_documents', []))
+            details = ''
+            if aCount != 0:
+                details += f' Assets: {aCount}'
+            if dCount != 0:
+                details += f' Documents: {dCount}'
+            item['details'] = details
+
+            progress = item.get('progress')
+            if progress is not None:
+                item['progress_pct'] = int(max(0, min(100, round(progress * 100))))
+        return result
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to fetch run history of {name}: {ex}")
+        return []
 
 
 def getSyncToken(request, subsystem) -> str:

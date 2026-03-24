@@ -98,6 +98,60 @@
               </table>
             </div>
           {% endif %}
+          {% if row.component == "matcher" %}
+            <h6 class="mb-2">Previous Runs</h6>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>State</th>
+                    <th>Started</th>
+                    <th>Finished</th>
+                    <th>Started By</th>
+                    <th>Progress</th>
+                    <th>Pairs</th>
+                    <th>Matches</th>
+                    <th>Scope</th>
+                    <th>Custom</th>
+                    <th>Config Hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if row.history %}
+                    {% for item in row.history %}
+                      <tr>
+                        <td>#{{ item.id }}</td>
+                        <td>{{ item.state|default:"-" }}</td>
+                        <td>{{ item.start_time|default:"-" }}</td>
+                        <td>{{ item.finished_at|default:"-" }}</td>
+                        <td>{{ item.trigger_label|default:"-" }}</td>
+                        <td>
+                          {% if item.progress_pct is not None %}
+                            <div class="progress" style="height: 0.65rem;">
+                              <div class="progress-bar" role="progressbar" style="width: {{ item.progress_pct }}%;" aria-valuenow="{{ item.progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <small class="text-muted">{{ item.progress_pct }}%</small>
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                        <td>{{ item.processed_pairs|default:0 }}/{{ item.total_pairs|default:0 }}</td>
+                        <td>{{ item.matches_found|default:0 }}</td>
+                        <td>{{ item.details|default:"-" }}</td>
+                        <td>{% if item.force_recompute %}Yes{% else %}No{% endif %}</td>
+                        <td><small>{{ item.matching_config_hash|default:"-" }}</small></td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="11" class="text-muted">No previous runs found.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
 
           {% if row.component == "matcher" and row.is_stopped and row.canStart %}
             <form method="post" action="{{ request.path }}" class="w-100">
@@ -230,6 +284,21 @@
         updateMatchingMode(selectEl);
       });
     });
+
+    var refreshIntervalMs = 10000;
+    setInterval(function() {
+      if (document.hidden) {
+        return;
+      }
+      if (document.querySelector('details[open]')) {
+        return;
+      }
+      var active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+        return;
+      }
+      window.location.reload();
+    }, refreshIntervalMs);
   })();
 </script>
 {% endblock %}
