@@ -1,4 +1,5 @@
 from django.db.models.signals import post_migrate
+from django.urls import reverse
 from netbox.plugins import PluginConfig
 
 class NetBoxCsafConfig(PluginConfig):
@@ -28,11 +29,12 @@ def init_custom_links(signal, sender, **kwargs):
     from extras.choices import CustomLinkButtonClassChoices
 
     try:
+        synchronisers_url = reverse('plugins:csaf:synchronisers')
         cl, created = CustomLink.objects.update_or_create(
             name='startRunForDeviceType',
             defaults={
                 'link_text': 'Trigger CSAF Matching',
-                'link_url': '/plugins/csaf/synchronisers/?trigger=1&deviceType={{ object.id }}',
+                'link_url': f'{synchronisers_url}?trigger=1&deviceType={{{{ object.id }}}}',
                 'button_class': CustomLinkButtonClassChoices.CYAN,
             })
         cl.object_types.set([ObjectType.objects.get_for_model(DeviceType)])

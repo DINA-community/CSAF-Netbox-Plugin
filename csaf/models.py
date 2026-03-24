@@ -238,11 +238,15 @@ class CsafMatch(NetBoxModel):
             self.__class__.objects.filter(pk=self.pk).update(remediation_status=target_status)
 
     def set_all_vulnerability_remediations(self, remediation_status):
+        if self.acceptance_status != self.AcceptanceStatus.CONFIRMED:
+            raise ValueError("Remediation status can only be changed for confirmed matches.")
         self.sync_vulnerability_remediations()
         self.vulnerability_statuses.update(remediation_status=remediation_status)
         self.update_remediation_from_vulnerabilities()
 
     def set_vulnerability_remediation(self, vulnerability, remediation_status):
+        if self.acceptance_status != self.AcceptanceStatus.CONFIRMED:
+            raise ValueError("Remediation status can only be changed for confirmed matches.")
         self.sync_vulnerability_remediations()
         entry, _ = CsafMatchVulnerabilityRemediation.objects.get_or_create(
             match=self,

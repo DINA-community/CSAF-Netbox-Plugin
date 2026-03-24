@@ -1292,6 +1292,10 @@ class CsafMatchView(generic.ObjectView):
             messages.error(request, "Missing remediation status update data.")
             return redirect(request.path)
 
+        if instance.acceptance_status != models.CsafMatch.AcceptanceStatus.CONFIRMED:
+            messages.error(request, "Remediation status can only be changed for confirmed matches.")
+            return redirect(request.path)
+
         if remediation_status not in models.CsafMatch.RemediationStatus:
             messages.error(request, f"Unknown remediation status: {remediation_status}")
             return redirect(request.path)
@@ -1305,7 +1309,11 @@ class CsafMatchView(generic.ObjectView):
             messages.error(request, "Unknown vulnerability.")
             return redirect(request.path)
 
-        instance.set_vulnerability_remediation(vulnerability, remediation_status)
+        try:
+            instance.set_vulnerability_remediation(vulnerability, remediation_status)
+        except ValueError as ex:
+            messages.error(request, str(ex))
+            return redirect(request.path)
         messages.success(request, "Updated vulnerability remediation status.")
         return redirect(request.path)
 
@@ -1533,10 +1541,16 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             )
             with transaction.atomic():
                 count = 0
-                for csafMatch in selected_objects:
+                skipped = 0
+                for csafMatch in selected_objects.select_related('csaf_document'):
+                    if csafMatch.acceptance_status != models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                        skipped += 1
+                        continue
                     csafMatch.set_all_vulnerability_remediations(targetRemStatus)
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
+            if skipped:
+                messages.warning(request, f"Skipped {skipped} non-confirmed CSAF-Matches.")
         return redirect(self.get_return_url(request))
 
 
@@ -1692,10 +1706,16 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             )
             with transaction.atomic():
                 count = 0
-                for csafMatch in selected_objects:
+                skipped = 0
+                for csafMatch in selected_objects.select_related('csaf_document'):
+                    if csafMatch.acceptance_status != models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                        skipped += 1
+                        continue
                     csafMatch.set_all_vulnerability_remediations(targetRemStatus)
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
+            if skipped:
+                messages.warning(request, f"Skipped {skipped} non-confirmed CSAF-Matches.")
         return redirect(self.get_return_url(request))
 
 
@@ -2664,7 +2684,15 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
             messages.error(request, "Unknown vulnerability remediation entry.")
             return redirect(return_url)
 
-        remediation_entry.match.set_vulnerability_remediation(remediation_entry.vulnerability, remediation_status)
+        if remediation_entry.match.acceptance_status != models.CsafMatch.AcceptanceStatus.CONFIRMED:
+            messages.error(request, "Remediation status can only be changed for confirmed matches.")
+            return redirect(return_url)
+
+        try:
+            remediation_entry.match.set_vulnerability_remediation(remediation_entry.vulnerability, remediation_status)
+        except ValueError as ex:
+            messages.error(request, str(ex))
+            return redirect(return_url)
         messages.success(request, "Updated vulnerability remediation status.")
         return redirect(return_url)
 

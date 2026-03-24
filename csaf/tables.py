@@ -158,7 +158,7 @@ class CsafDocumentTable(NetBoxTable):
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
-        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i>', external)
+        return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
 
 
 class CsafMatchListForDeviceTable(NetBoxTable):
@@ -731,6 +731,8 @@ class CsafAssetVulnerabilityTable(NetBoxTable):
 
         status_value = record.remediation_status or CsafMatch.RemediationStatus.NEW
         status_label = CsafMatch.RemediationStatus(status_value).label
+        if match.acceptance_status != CsafMatch.AcceptanceStatus.CONFIRMED:
+            return status_label
         request = getattr(self, 'request', None)
         if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
             return status_label

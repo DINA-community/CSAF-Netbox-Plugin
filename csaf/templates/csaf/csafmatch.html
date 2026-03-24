@@ -122,7 +122,7 @@
                   <td>{{ entry.vulnerability.title|placeholder }}</td>
                   <td>{{ entry.vulnerability.cvss_badge }}</td>
                   <td>
-                    {% if perms.csaf.edit_csafmatch %}
+                    {% if perms.csaf.edit_csafmatch and object.acceptance_status == 'C' %}
                       <div class="dropdown">
                         <button
                           type="button"
