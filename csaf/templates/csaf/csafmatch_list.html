@@ -98,8 +98,8 @@
 
       {% if statusFilter %}
         <input type="hidden" name="statusString" value="{{ statusString }}">
-        <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
       {% endif %}
+      <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
       <div class="col col-md-12">
         <div class="card">
           <div class="htmx-container table-responsive" id="object_list">
