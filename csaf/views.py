@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
 from netbox.views import generic
@@ -35,6 +36,7 @@ RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
 RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+RIGHT_DASHBOARD_VIEW = "csaf.view_csafmatch"
 
 COMPONENT_LABELS = {
     'assetsync': 'Asset Sync',
@@ -258,6 +260,101 @@ class Configuration(View):
         return render(request, 'csaf/configuration.html', {
             'data': result,
             'error_help': error_help,
+        })
+
+
+class Dashboard(View):
+    """
+    CSAF dashboard with key statistics and quick links for engineering workflows.
+    """
+
+    def get(self, request):
+        if not request.user.has_perm(RIGHT_DASHBOARD_VIEW):
+            raise PermissionsViolation(f'User does not have permission {RIGHT_DASHBOARD_VIEW}')
+
+        match_counts = models.CsafMatch.objects.aggregate(
+            new_count=Count('id', filter=Q(acceptance_status=models.CsafMatch.AcceptanceStatus.NEW)),
+            reopened_count=Count('id', filter=Q(acceptance_status=models.CsafMatch.AcceptanceStatus.REOPENED)),
+            confirmed_count=Count('id', filter=Q(acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED)),
+            false_positive_count=Count('id', filter=Q(acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)),
+        )
+        remediation_counts = models.CsafMatch.objects.filter(
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED
+        ).aggregate(
+            open_count=Count(
+                'id',
+                filter=Q(remediation_status__in=[
+                    models.CsafMatch.RemediationStatus.NEW,
+                    models.CsafMatch.RemediationStatus.IN_PROGRESS,
+                ]),
+            ),
+            resolved_count=Count(
+                'id',
+                filter=Q(remediation_status=models.CsafMatch.RemediationStatus.RESOLVED),
+            ),
+        )
+
+        document_count = models.CsafDocument.objects.count()
+        vulnerability_count = models.CsafVulnerability.objects.count()
+
+        systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'synchronisers', 'urls'), [])
+        matcher_statuses = []
+        for system in systems:
+            if not getFromJson(system, ('isMatcher',), False):
+                continue
+            name = getFromJson(system, ('name',), 'Unnamed Matcher')
+            token, _ = getSyncToken(request, system)
+            if token is None:
+                matcher_statuses.append({
+                    'name': name,
+                    'state': 'offline',
+                    'running_count': 0,
+                    'last_run': None,
+                    'last_run_label': 'Unavailable',
+                })
+                continue
+            status = getStatus(request, system, token) or {}
+            running = status.get('running', [])
+            last_run_ts = status.get('last_matching') or status.get('last_synchronization')
+            matcher_statuses.append({
+                'name': name,
+                'state': status.get('state', 'unknown'),
+                'running_count': len(running),
+                'last_run': datetime.fromtimestamp(last_run_ts) if last_run_ts else None,
+                'last_run_label': (
+                    'Currently running'
+                    if str(status.get('state', '')).lower() == 'running'
+                    else (datetime.fromtimestamp(last_run_ts) if last_run_ts else 'Never')
+                ),
+            })
+
+        links = {
+            'potential_matches': reverse('plugins:csaf:csafmatch_list'),
+            'confirmed_matches': reverse('plugins:csaf:csafmatch_confirmed'),
+            'new_matches': f"{reverse('plugins:csaf:csafmatch_list')}?statusString=1000",
+            'reopened_matches': f"{reverse('plugins:csaf:csafmatch_list')}?statusString=0100",
+            'open_remediations': (
+                f"{reverse('plugins:csaf:csafmatch_confirmed')}"
+                f"?remediation_status={models.CsafMatch.RemediationStatus.NEW}"
+                f"&remediation_status={models.CsafMatch.RemediationStatus.IN_PROGRESS}"
+            ),
+            'resolved_remediations': (
+                f"{reverse('plugins:csaf:csafmatch_confirmed')}"
+                f"?remediation_status={models.CsafMatch.RemediationStatus.RESOLVED}"
+            ),
+            'false_positives': f"{reverse('plugins:csaf:csafmatch_list')}?statusString=0001",
+            'documents': reverse('plugins:csaf:csafdocument_list'),
+            'vulnerabilities': reverse('plugins:csaf:csafvulnerability_list'),
+            'synchronisers': reverse('plugins:csaf:synchronisers'),
+        }
+
+        return render(request, 'csaf/dashboard.html', {
+            'match_counts': match_counts,
+            'remediation_counts': remediation_counts,
+            'document_count': document_count,
+            'vulnerability_count': vulnerability_count,
+            'matcher_statuses': matcher_statuses,
+            'links': links,
         })
 
 def get_nested(config: dict[str, any], dotted: str) -> any:

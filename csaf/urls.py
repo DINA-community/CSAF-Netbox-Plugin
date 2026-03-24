@@ -15,4 +15,5 @@ urlpatterns = (
 
     path('synchronisers/', views.Synchronisers.as_view(), name='synchronisers'),
     path('configuration/', views.Configuration.as_view(), name='configuration'),
+    path('dashboard/', views.Dashboard.as_view(), name='dashboard'),
 )
