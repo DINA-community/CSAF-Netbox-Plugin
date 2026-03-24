@@ -1507,6 +1507,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
+        redirect_to_confirmed = False
+        redirect_to_potential = False
         reject = request.POST.get('reject', "")
         if reject:
             setAcceptedStatusFor(self.queryset, reject, models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE, request)
@@ -1514,10 +1516,12 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         accept = request.POST.get('accept', "")
         if accept:
             setAcceptedStatusFor(self.queryset, accept, models.CsafMatch.AcceptanceStatus.CONFIRMED, request)
+            redirect_to_confirmed = True
 
         renew = request.POST.get('renew', "")
         if renew:
             setAcceptedStatusFor(self.queryset, renew, models.CsafMatch.AcceptanceStatus.NEW, request)
+            redirect_to_potential = True
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
@@ -1528,6 +1532,13 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             pk = request.POST.get('pk', None)
             pks = request.POST.getlist('pk', [pk])
             setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
+            if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                redirect_to_confirmed = True
+            elif targetAccStatus in (
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.REOPENED,
+            ):
+                redirect_to_potential = True
 
         targetRemStatus = request.POST.get('targetRemStatus', "")
         if targetRemStatus:
@@ -1551,6 +1562,10 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             messages.success(request, f"Updated {count} CSAF-Matches")
             if skipped:
                 messages.warning(request, f"Skipped {skipped} non-confirmed CSAF-Matches.")
+        if redirect_to_confirmed:
+            return redirect('plugins:csaf:csafmatch_confirmed')
+        if redirect_to_potential:
+            return redirect('plugins:csaf:csafmatch_list')
         return redirect(self.get_return_url(request))
 
 
@@ -1656,6 +1671,18 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             'csaf_document',
         ).prefetch_related('csaf_document__vulnerabilities', 'vulnerability_statuses')
 
+    def get_confirmed_tab_url(self, instance):
+        base = instance.get_absolute_url()
+        if not base.endswith('/'):
+            base += '/'
+        return f'{base}csafmatches/'
+
+    def get_potential_tab_url(self, instance):
+        base = instance.get_absolute_url()
+        if not base.endswith('/'):
+            base += '/'
+        return f'{base}csafmatchesnew/'
+
     def post(self, request, *args, **kwargs):
         logger = logging.getLogger('csaf.views.CsafMatchListFor')
         logger.debug("POST from Match List")
@@ -1666,6 +1693,8 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         if not user.has_perms(('csaf.edit_csafmatch',)):
             return self.handle_no_permission()
 
+        redirect_to_confirmed = False
+        redirect_to_potential = False
         reject = request.POST.get('reject', "")
         if reject:
             setAcceptedStatusFor(children, reject, models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE, request)
@@ -1673,10 +1702,12 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         accept = request.POST.get('accept', "")
         if accept:
             setAcceptedStatusFor(children, accept, models.CsafMatch.AcceptanceStatus.CONFIRMED, request)
+            redirect_to_confirmed = True
 
         renew = request.POST.get('renew', "")
         if renew:
             setAcceptedStatusFor(children, renew, models.CsafMatch.AcceptanceStatus.NEW, request)
+            redirect_to_potential = True
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
@@ -1694,6 +1725,13 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                     csafMatch.save()
                     count += 1
             messages.success(request, f"Updated {count} CSAF-Matches")
+            if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                redirect_to_confirmed = True
+            elif targetAccStatus in (
+                models.CsafMatch.AcceptanceStatus.NEW,
+                models.CsafMatch.AcceptanceStatus.REOPENED,
+            ):
+                redirect_to_potential = True
 
         targetRemStatus = request.POST.get('targetRemStatus', "")
         if targetRemStatus:
@@ -1716,6 +1754,10 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
             messages.success(request, f"Updated {count} CSAF-Matches")
             if skipped:
                 messages.warning(request, f"Skipped {skipped} non-confirmed CSAF-Matches.")
+        if redirect_to_confirmed:
+            return redirect(self.get_confirmed_tab_url(instance))
+        if redirect_to_potential:
+            return redirect(self.get_potential_tab_url(instance))
         return redirect(self.get_return_url(request))
 
 
@@ -1776,6 +1818,7 @@ def cleanUrl(url):
             or part.startswith('toggle')
             or part.startswith('remStatusString')
             or part.startswith('remToggle')
+            or part.startswith('include_false_positives')
         ):
             result = result + part + '&'
     return result
@@ -2457,24 +2500,60 @@ class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
 
     tab = ViewTab(
         label='Potential CSAF Matches',
-        badge=lambda obj: models.CsafMatch.objects.filter(
-            csaf_document=obj,
-            acceptance_status__in=[
-                models.CsafMatch.AcceptanceStatus.NEW,
-                models.CsafMatch.AcceptanceStatus.REOPENED])
-            .count(),
+        badge=lambda obj: (
+            lambda new_count, reopened_count, false_positives:
+                f"{new_count + reopened_count} | R:{reopened_count}"
+                + (f" | FP:{false_positives}" if false_positives else "")
+        )(
+            models.CsafMatch.objects.filter(
+                csaf_document=obj,
+                acceptance_status=models.CsafMatch.AcceptanceStatus.NEW,
+            ).count(),
+            models.CsafMatch.objects.filter(
+                csaf_document=obj,
+                acceptance_status=models.CsafMatch.AcceptanceStatus.REOPENED,
+            ).count(),
+            models.CsafMatch.objects.filter(
+                csaf_document=obj,
+                acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE,
+            ).count(),
+        ),
         permission='csaf.view_csafmatch'
     )
 
+    def _set_include_false_positives(self, request):
+        self.include_false_positives = parseBool(request.GET.get('include_false_positives', None)) is True
+
+    def get(self, request, *args, **kwargs):
+        self._set_include_false_positives(request)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self._set_include_false_positives(request)
+        return super().post(request, *args, **kwargs)
+
     def get_children_for(self, parent):
+        statuses = [
+            models.CsafMatch.AcceptanceStatus.NEW,
+            models.CsafMatch.AcceptanceStatus.REOPENED,
+        ]
+        if getattr(self, 'include_false_positives', False):
+            statuses.append(models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE)
         return self.child_model.objects.filter(
                 csaf_document=parent
             ).filter(
-                acceptance_status__in=[
-                    models.CsafMatch.AcceptanceStatus.NEW,
-                    models.CsafMatch.AcceptanceStatus.REOPENED
-                ]
+                acceptance_status__in=statuses
             )
+
+    def get_extra_context(self, request, instance):
+        false_positive_count = self.child_model.objects.filter(
+            csaf_document=instance,
+            acceptance_status=models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE,
+        ).count()
+        return {
+            'false_positive_count': false_positive_count,
+            'include_false_positives': getattr(self, 'include_false_positives', False),
+        }
 
 
 # Confirmed CsafMatches view for one Document

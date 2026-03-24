@@ -31,6 +31,19 @@
         {% endfor %}
       </ul>
     {% endif %}
+    {% if false_positive_count %}
+      {% if include_false_positives %}
+        <div class="alert alert-warning py-2">
+          False positive matches are currently shown.
+          <a href="{{ return_url }}include_false_positives=0" class="alert-link">Hide false positives</a>
+        </div>
+      {% else %}
+        <div class="alert alert-info py-2">
+          There are {{ false_positive_count }} false positive match(es), currently hidden by default.
+          <a href="{{ return_url }}include_false_positives=1" class="alert-link">Show false positives</a>
+        </div>
+      {% endif %}
+    {% endif %}
 
     <div class="row mb-3">
       {% if statusFilter %}
