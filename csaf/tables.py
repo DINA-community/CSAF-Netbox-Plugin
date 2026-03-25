@@ -667,6 +667,11 @@ class CsafAssetVulnerabilityTable(NetBoxTable):
         verbose_name='Title',
         orderable=False,
     )
+    cwe = tables.Column(
+        accessor='vulnerability.cwe',
+        verbose_name='CWE',
+        orderable=False,
+    )
     cvss_base_score = tables.Column(
         accessor='vulnerability.cvss_base_score',
         verbose_name='CVSS Base Score',
@@ -699,6 +704,7 @@ class CsafAssetVulnerabilityTable(NetBoxTable):
             'vulnerability',
             'cve',
             'title',
+            'cwe',
             'cvss_base_score',
             'match',
             'match_acceptance',

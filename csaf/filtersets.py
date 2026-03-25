@@ -6,7 +6,7 @@ from django.db.models import Q
 from netbox.filtersets import NetBoxModelFilterSet
 from utilities.filters import MultiValueCharFilter
 from d3c.models import Software
-from .models import CsafDocument, CsafMatch, CsafVulnerability
+from .models import CsafDocument, CsafMatch, CsafVulnerability, CsafMatchVulnerabilityRemediation
 
 
 class CsafDocumentFilterSet(NetBoxModelFilterSet):
@@ -140,4 +140,51 @@ class CsafVulnerabilityFilterSet(NetBoxModelFilterSet):
             Q(cwe__icontains=value) |
             Q(csaf_document__title__icontains=value) |
             Q(csaf_document__tracking_id__icontains=value)
+        )
+
+class CsafMatchVulnerabilityRemediationFilterSet(NetBoxModelFilterSet):
+    """
+    Definition of the Filterset for CsafMatchVulnerabilityRemediation.
+    """
+    class Meta:
+        model = CsafMatchVulnerabilityRemediation
+        fields = ('id', 'match_id', 'vulnerability_id', 'csaf_document_id', 'remediation_status')
+
+    vulnerability_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=CsafVulnerability.objects.all(),
+        label='Vulnerability',
+    )
+
+    csaf_document_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=CsafDocument.objects.all(),
+        label='Document',
+        field_name='vulnerability__csaf_document_id',
+    )
+
+    cve = MultiValueCharFilter(
+        label='Vulnerability CVE',
+        field_name='vulnerability__cve',
+        lookup_expr='icontains'
+    )
+    title = MultiValueCharFilter(
+        label='Vulnerability Title',
+        field_name='vulnerability__title',
+        lookup_expr='icontains'
+    )
+    cwe = MultiValueCharFilter(
+        label='Vulnerability CWE',
+        field_name='vulnerability__cwe',
+        lookup_expr='icontains'
+    )
+
+    def search(self, queryset, status, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(vulnerability__cve__icontains=value)
+            | Q(vulnerability__title__icontains=value)
+            | Q(vulnerability__summary__icontains=value)
+            | Q(vulnerability__cwe__icontains=value)
+            | Q(vulnerability__csaf_document__title__icontains=value)
+            | Q(vulnerability__csaf_document__tracking_id__icontains=value)
         )

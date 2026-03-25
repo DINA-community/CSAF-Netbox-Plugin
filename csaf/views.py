@@ -2768,6 +2768,8 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
     child_model = models.CsafMatchVulnerabilityRemediation
     table = tables.CsafAssetVulnerabilityTable
     template_name = 'csaf/csaf_asset_vulnerability_list.html'
+    filterset = filtersets.CsafMatchVulnerabilityRemediationFilterSet
+    filterset_form = forms.CsafMatchVulnerabilityRemediationFilterForm
 
     def get_children_for(self, parent):
         return self.child_model.objects.none()
@@ -2808,6 +2810,8 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
     def get(self, request, *args, **kwargs):
         instance = self.get_object(**kwargs)
         child_objects = self.get_children_for(instance)
+        if self.filterset:
+            child_objects = self.filterset(request.GET, child_objects, request=request).qs
         rem_status_string, rem_status_search, rem_filter_buttons = self.get_remediation_filter(request)
         child_objects = child_objects.filter(remediation_status__in=rem_status_search)
 
@@ -2829,6 +2833,7 @@ class CsafVulnerabilityListForAsset(generic.ObjectChildrenView, GetReturnURLMixi
             'table': table,
             'table_config': f'{table.name}_config',
             'table_configs': get_table_configs(table, request.user),
+            'filter_form': self.filterset_form(request.GET) if self.filterset_form else None,
             'actions': (),
             'tab': self.tab,
             'return_url': return_url,
