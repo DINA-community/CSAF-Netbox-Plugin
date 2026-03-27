@@ -39,7 +39,6 @@
           {% endfor %}
         </table>
         <div style="margin-top: 10px;"></div>
-          <!-- <button id="save-config" class="btn btn-success"><i class="mdi mdi-content-save"></i>Save All</button> -->
           <form method="post" action="{% url 'plugins:csaf:update-config' %}" id="config-form">
             {% csrf_token %}
             <input type="hidden" name="config" id="config-json">
@@ -123,23 +122,6 @@
       return config;
     
     };
-    
-    // fetch("/plugins/csaf/update-config/", {
-    //     method: "POST",
-    //     headers: {
-    //         "Content-Type": "application/json",
-    //         "X-CSRFToken": getCSRFToken()
-    //     },
-    //     body: JSON.stringify(config)
-    //   })
-    // };
-
-    // CSRF Token holen (wichtig für Django!)
-    function getCSRFToken() {
-        return document.cookie.split('; ')
-            .find(row => row.startsWith('csrftoken'))
-            ?.split('=')[1];
-    }
 
     document.querySelectorAll(".edit-btn").forEach(btn => {
       btn.addEventListener("click", function() {
