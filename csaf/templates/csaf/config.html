@@ -1,0 +1,222 @@
+{% extends 'generic/_base.html' %}
+{% load buttons %}
+{% load custom_links %}
+{% load helpers %}
+{% load perms %}
+{% load plugins %}
+{% load tabs %}
+{% load i18n %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+<div class="row mb-3">
+
+  <div class="col col-md-12">
+    <div class="card">
+      <div class="card-body table-responsive">
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Attribute</th>
+            <th>Value Type</th>
+            <th>Value</th>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+          {% for row in data %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ row.attribute }}</td>
+              <td>{{ row.valueType }}</td>
+              <td class="value">{% if row.valueType == "bool" %} {% if row.value %} <span class="badge text-bg-green">True</span>{% else %} <span class="badge text-bg-red">False</span> {% endif %} {% else %} {{ row.value }} {% endif %}</td>
+              <td>{% if row.status %}<span class="badge text-bg-red">Required</span>{% else %} <span class="badge text-bg-green">Optional</span> {% endif %}</td>
+              <td>{{ row.description }}</td>
+              <td>
+                <button class="btn btn-sm btn-yellow edit-btn"><i class="mdi mdi-pencil"></i></button>
+              </td>
+            </tr>
+          {% endfor %}
+        </table>
+        <div style="margin-top: 10px;"></div>
+          <!-- <button id="save-config" class="btn btn-success"><i class="mdi mdi-content-save"></i>Save All</button> -->
+          <form method="post" action="{% url 'plugins:csaf:update-config' %}" id="config-form">
+            {% csrf_token %}
+            <input type="hidden" name="config" id="config-json">
+            <button type="submit" id="save-config" class="btn btn-success">
+                <i class="mdi mdi-content-save"></i> Save All
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% if error_help %}
+<div class="row mb-3">
+  <div class="col col-md-12">
+    <div class="card">
+      <div class="card-header">
+        Possible causes and solutions for errors:
+      </div>
+      <div class="card-body">
+        <dl>
+          <dt>Failed to resolve (Errno -2)</dt>
+          <dd>The <em>url</em> for the synchroniser/matcher is not correct in the Netbox configuration file.</dd>
+
+          <dt>Failed to establish a new connection (Errno 111)</dt>
+          <dd>Netbox could not connect to the synchroniser/matcher.
+            Either because the synchroniser/matcher is not running, or because the URL is not correct.
+            When running in a container environment (such as Docker) the host <i>localhost</i> refers to
+            the pod of Netbox itself and is most likely not correct.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    document.getElementById("config-form").addEventListener("submit", function(e) {
+    // Tabelle in JSON sammeln
+    const config = collectTableConfig();  // deine Funktion, die config erzeugt
+    document.getElementById("config-json").value = JSON.stringify(config);
+    });
+
+    function collectTableConfig(){
+    const rows = document.querySelectorAll("table tr");
+    const config = {};
+
+    rows.forEach((row, index) => {
+        if (index === 0) return; // Header überspringen
+
+        const valueCell = row.querySelector(".value");
+        const input = valueCell.querySelector("input");
+
+        // Wenn noch im Edit-Modus: Wert aus Input übernehmen
+        if (input) {
+            const newValue = input.value.trim();
+            valueCell.textContent = newValue;
+
+            // Button zurücksetzen
+            const btn = row.querySelector(".edit-btn");
+            btn.innerHTML = `<i class="mdi mdi-pencil"></i>`;
+            btn.classList.remove("btn-success");
+            btn.classList.add("btn-yellow");
+            btn.dataset.editing = "false";
+        }
+
+        // Nur Zeilen mit echtem Inhalt sammeln
+        const value = valueCell.textContent.trim();
+        const attribute = row.querySelector("td:nth-child(2)").textContent.trim();
+
+        // Optional: Zeile als bearbeitet markieren
+        if (input && value !== input.dataset.originalValue) {
+            row.classList.add("table-warning");
+        }
+
+        if (attribute) setNested(config, attribute, parseValue(value));
+      })
+      return config;
+    
+    };
+    
+    // fetch("/plugins/csaf/update-config/", {
+    //     method: "POST",
+    //     headers: {
+    //         "Content-Type": "application/json",
+    //         "X-CSRFToken": getCSRFToken()
+    //     },
+    //     body: JSON.stringify(config)
+    //   })
+    // };
+
+    // CSRF Token holen (wichtig für Django!)
+    function getCSRFToken() {
+        return document.cookie.split('; ')
+            .find(row => row.startsWith('csrftoken'))
+            ?.split('=')[1];
+    }
+
+    document.querySelectorAll(".edit-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        const row = this.closest("tr");
+        const valueCell = row.querySelector(".value");
+        if (this.innerHTML === `<i class="mdi mdi-pencil"></i>`) {
+            // --- Edit-Modus ---
+            const currentValue = valueCell.textContent.trim();
+            valueCell.innerHTML = `<input type="text" class="form-control" value="${currentValue}">`;
+            row.dataset.originalValue = currentValue;
+            this.innerHTML = `<i class="mdi mdi-content-save"></i>`;
+            this.classList.remove("btn-yellow");
+            this.classList.add("btn-success");
+        } else {
+            // --- Save-Modus ---
+            const input = valueCell.querySelector('input');
+            if (input) {
+                const newValue = input.value;
+                valueCell.textContent = newValue;
+                // Nur markieren, wenn Wert sich tatsächlich geändert hat
+                if (newValue !== row.dataset.originalValue) {
+                    row.classList.add("table-warning");
+                } else {
+                    row.classList.remove("table-warning"); // ggf. alte Markierung entfernen
+                }
+            }
+            this.innerHTML = `<i class="mdi mdi-pencil"></i>`;
+            this.classList.remove("btn-success");
+            this.classList.add("btn-yellow");
+        };
+      });
+    });
+
+    function setNested(obj, path, value) {
+      const keys = path.split('.'); // z.B. "Assetsync.Synchronizer.sync_interval"
+      let current = obj;
+      keys.forEach((key, i) => {
+          if (i === keys.length - 1) {
+              // Endknoten → Wert setzen
+              current[key] = value;
+          } else {
+              // Zwischenobjekt anlegen, falls nicht vorhanden
+              if (!(key in current)) current[key] = {};
+              current = current[key];
+          }
+      });
+    }
+
+    function parseValue(value) {
+    value = value.trim();
+
+    // Boolean
+    if (value === "true") return true;
+    if (value === "false") return false;
+
+    // Null
+    if (value.toLowerCase() === "none" || value === "null") return null;
+
+    // Listen: '[a,b]' → ["a","b"]
+    if (value.startsWith("[") && value.endsWith("]")) {
+        try {
+            // Einfaches JSON-Parsing, Strings in Anführungszeichen ersetzen
+            const jsonCompatible = value.replace(/'/g, '"');
+            return JSON.parse(jsonCompatible);
+        } catch (err) {
+            console.warn("Fehler beim Parsen der Liste:", value);
+            return value;
+        }
+    }
+
+    // Zahlen: Komma → Punkt
+    if (!isNaN(value.replace(',', '.')) && value !== "") {
+        return Number(value.replace(',', '.'));
+    }
+
+    // Alles andere als String
+    return value;
+    }
+  </script>
+{% endblock javascript %}

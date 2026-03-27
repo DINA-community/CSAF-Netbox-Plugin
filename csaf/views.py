@@ -220,7 +220,7 @@ def build_metric_cards_for_status(status, component):
     ]
 
 
-class Configuration(View):
+class Config(View):
     """
     Display the status of configured synchronisers.
     """
@@ -236,7 +236,7 @@ class Configuration(View):
         if msg != OK_LABEL:
             error_help = True
         if token is None:
-            return render(request, 'csaf/configuration.html', {
+            return render(request, 'csaf/config.html', {
                 'data': data,
                 'error_help': error_help,
         })
@@ -261,11 +261,35 @@ class Configuration(View):
                 }
             )
 
-        return render(request, 'csaf/configuration.html', {
+        return render(request, 'csaf/config.html', {
             'data': result,
             'error_help': error_help,
         })
 
+class UpdateConfigView(View):
+    def post(self, request):
+        try:
+            if not request.user.has_perm(RIGHT_CONFIG_VIEW):
+                raise PermissionsViolation(f'User does not have permission {RIGHT_CONFIG_VIEW}')
+            error_help = False
+            systems = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','urls'), [])
+            data = []
+            system = systems[2]
+            (token, msg) = getSyncToken(request, system)
+            if msg != OK_LABEL:
+                error_help = True
+            if token is None:
+                return render(request, 'csaf/config.html', {
+                    'data': data,
+                    'error_help': error_help,
+            })
+            config_json = request.POST.get("config")
+            config = json.loads(config_json)
+            
+            api_resp = setConfig(request, system, token, config)
+        except Exception as e:
+            messages.error(request, f"Fehler beim Speichern: {str(e)}")
+        return redirect("plugins:csaf:config")
 
 class Dashboard(View):
     """
@@ -1134,7 +1158,7 @@ def getConfig(request, system, token):
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
     baseUrl = getFromJson(system, ('url',), None)
     name = getFromJson(system, ('name',), 'Unnamed')
-    status_url = f"{baseUrl}/config"
+    status_url = f"{baseUrl}/config/"
     try:
         response = requests.get(
             status_url,
@@ -1147,6 +1171,26 @@ def getConfig(request, system, token):
         return result
     except requests.exceptions.RequestException as ex:
         messages.error(request, f"Failed to fetch config of {name}: {ex}")
+
+def setConfig(request, system, token, config):
+    verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
+    verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
+    baseUrl = getFromJson(system, ('url',), None)
+    name = getFromJson(system, ('name',), 'Unnamed')
+    status_url = f"{baseUrl}/config/"
+    try:
+        response = requests.post(
+            status_url,
+            headers={'Authorization': 'Bearer ' + token},
+            verify=verifySsl,
+            json=config
+        )
+        if (response.status_code < 200 or response.status_code >= 300):
+            messages.error(request, f"Failed to save config of {name}: {response.text}")
+        result = response.json()
+        messages.success(request, f"Config saved!")
+    except requests.exceptions.RequestException as ex:
+        messages.error(request, f"Failed to save config of {name}: {ex}")
 
 
 def getRunningMatchers(request, system, token):
