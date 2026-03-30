@@ -45,6 +45,10 @@ class CsafDocument(NetBoxModel):
         blank=True,
         null=True
     )
+    next_retry_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
 
     class Meta:
         ordering = ['id']

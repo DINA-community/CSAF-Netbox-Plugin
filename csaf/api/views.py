@@ -7,6 +7,8 @@ from core.choices import JobIntervalChoices
 from datetime import timedelta
 from django.conf import settings
 from django.db import IntegrityError
+from django.db.models import Q
+from django.utils import timezone
 import requests
 from rq.utils import now
 from netbox.api.viewsets import NetBoxModelViewSet
@@ -93,9 +95,14 @@ def truncate(length, data):
     return data
 
 def fetchLoadingDocuments():
-    query = models.CsafDocument.objects.filter(title = TITLE_LOADING)
+    now_ts = timezone.now()
+    query = models.CsafDocument.objects.filter(
+        Q(title=TITLE_LOADING) |
+        (Q(title=TITLE_FAILED) & (Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now_ts)))
+    )
     token = False
     verify_ssl = getDocumentVerifySsl()
+    retry_interval = getDocumentRetryInterval()
     for doc in query:
         docurl = doc.docurl
         if not token:
@@ -116,6 +123,7 @@ def fetchLoadingDocuments():
                 doc.title = TITLE_NOT_FOUND
                 doc.tracking_id = None
                 doc.product_tree = None
+                doc.next_retry_at = None
                 models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             else:
                 doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
@@ -127,30 +135,31 @@ def fetchLoadingDocuments():
                 if product_tree is None:
                     product_tree = getFromJson(jsonDoc, ('document', 'product_tree'), None)
                 doc.product_tree = product_tree
+                doc.next_retry_at = None
                 syncVulnerabilitiesForDocument(doc, jsonDoc)
             print(f"Loaded: {doc.title}")
             doc.save()
         except requests.exceptions.RequestException as ex:
             print("Failed to fetch document")
             print(ex)
-            doc.title = TITLE_FAILED
-            doc.product_tree = None
-            models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
-            if not doc.version or int(doc.version) != doc.version:
-                doc.version = 1
-            else:
-                doc.version = int(doc.version) + 1
-            doc.save()
+            markDocumentForRetry(doc, retry_interval)
         except Exception as e:
             print(e)
-            doc.title = TITLE_FAILED
-            doc.product_tree = None
-            models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
-            if not doc.version or int(doc.version) != doc.version:
-                doc.version = 1
-            else:
-                doc.version = int(doc.version) + 1
-            doc.save()
+            markDocumentForRetry(doc, retry_interval)
+
+
+def markDocumentForRetry(doc, retry_interval):
+    doc.title = TITLE_FAILED
+    doc.product_tree = None
+    doc.next_retry_at = timezone.now() + timedelta(minutes=retry_interval)
+    models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
+
+    try:
+        version_int = int(str(doc.version))
+    except (TypeError, ValueError):
+        version_int = 0
+    doc.version = str(version_int + 1)
+    doc.save()
 
 
 def getBaseScore(vulnerability):
@@ -279,6 +288,18 @@ def getDocumentVerifySsl():
         verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'verify_ssl'), True)
         verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_verify_ssl'), verify_ssl)
     return verify_ssl
+
+
+def getDocumentRetryInterval():
+    interval = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'document_retry_interval_minutes'), None)
+    interval = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_document_retry_interval_minutes'), interval)
+    try:
+        interval = int(interval)
+    except (TypeError, ValueError):
+        interval = 60
+    if interval < 1:
+        interval = 1
+    return interval
 
 def getToken() -> str:
     """Retrieve an access token via Keycloak."""

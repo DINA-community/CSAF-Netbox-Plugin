@@ -17,6 +17,7 @@ PLUGINS_CONFIG = {
       'keycloak_url': 'http://keyCloak.my.domain/', # Base URL of KeyCloak used by IsDuBa
       'keycloak_verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False).
       'document_verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False) when downloading CSAF documents.
+      'document_retry_interval_minutes': 60, # Minutes between retries for failed CSAF document downloads.
       'username': 'MyUserName', # user name for KeyCloak
       'password': 'MyPassword' # user password for KeyCloak
     },
