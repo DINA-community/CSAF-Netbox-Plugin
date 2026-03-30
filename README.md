@@ -16,6 +16,7 @@ PLUGINS_CONFIG = {
     'isduba': {
       'keycloak_url': 'http://keyCloak.my.domain/', # Base URL of KeyCloak used by IsDuBa
       'keycloak_verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False).
+      'document_verify_ssl': False, # Should SSL errors be thrown (True) or ignored (False) when downloading CSAF documents.
       'username': 'MyUserName', # user name for KeyCloak
       'password': 'MyPassword' # user password for KeyCloak
     },
@@ -196,4 +197,3 @@ This section contains links for familiarizing yourself with Django, NetBox, and 
 - NetBox plugin development Tutorial: <https://github.com/netbox-community/netbox-plugin-tutorial>
 - Setting up a development environment with Docker for NetBox plugins: <https://github.com/netbox-community/netbox-docker/discussions/746>
 - django-table2 Documentation used by the Plugin and NetBox: <https://django-tables2.readthedocs.io/en/latest/>
-

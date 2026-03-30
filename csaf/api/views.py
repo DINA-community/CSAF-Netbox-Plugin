@@ -95,6 +95,7 @@ def truncate(length, data):
 def fetchLoadingDocuments():
     query = models.CsafDocument.objects.filter(title = TITLE_LOADING)
     token = False
+    verify_ssl = getDocumentVerifySsl()
     for doc in query:
         docurl = doc.docurl
         if not token:
@@ -106,7 +107,8 @@ def fetchLoadingDocuments():
             print(f"Requesting: {docurl}")
             result = requests.get(
                 url=docurl,
-                headers=headers
+                headers=headers,
+                verify=verify_ssl,
             )
             jsonDoc = result.json()
             code = getFromJson(jsonDoc, ('code',), 200)
@@ -269,6 +271,14 @@ def getFromJson(document, path, dflt):
         return dflt
     except Exception:
         return dflt
+
+def getDocumentVerifySsl():
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'document_verify_ssl'), None)
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_document_verify_ssl'), verify_ssl)
+    if verify_ssl is None:
+        verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'verify_ssl'), True)
+        verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_verify_ssl'), verify_ssl)
+    return verify_ssl
 
 def getToken() -> str:
     """Retrieve an access token via Keycloak."""
