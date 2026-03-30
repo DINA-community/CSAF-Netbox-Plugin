@@ -24,7 +24,7 @@ config = NetBoxCsafConfig
 
 def init_custom_links(signal, sender, **kwargs):
     from core.models import ObjectType
-    from dcim.models.devices import DeviceType
+    from dcim.models.devices import Device, DeviceType
     from extras.models import CustomLink
     from extras.choices import CustomLinkButtonClassChoices
 
@@ -38,6 +38,15 @@ def init_custom_links(signal, sender, **kwargs):
                 'button_class': CustomLinkButtonClassChoices.CYAN,
             })
         cl.object_types.set([ObjectType.objects.get_for_model(DeviceType)])
+
+        cl, created = CustomLink.objects.update_or_create(
+            name='startRunForDevice',
+            defaults={
+                'link_text': 'Trigger CSAF Matching',
+                'link_url': f'{synchronisers_url}?trigger=1&device={{{{ object.id }}}}',
+                'button_class': CustomLinkButtonClassChoices.CYAN,
+            })
+        cl.object_types.set([ObjectType.objects.get_for_model(Device)])
     except Exception as e:
         print("Failed to create custom link")
         print(e)
