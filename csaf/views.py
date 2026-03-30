@@ -475,14 +475,27 @@ class Synchronisers(View):
                 systemData['clear'] = CLEAR_TABLE
                 systemData['info'] = buildInfoStringMatcher(system, status)
                 systemData['matcher_weight_field_groups'] = MATCHER_WEIGHT_FIELD_GROUPS
-                running_tasks = status.get('running', [])
+                history = getMatcherHistory(request, system, token, limit=1000)
+                active_run_states = {'running', 'stop_requested', 'stopping', 'stopped'}
+                running_tasks = [
+                    item for item in (history or [])
+                    if str(item.get('state', '')).strip().lower() in active_run_states
+                ]
                 systemData['running'] = running_tasks
                 systemData['running_summary'] = {
-                    'running': sum(1 for item in running_tasks if item.get('state') == 'running'),
-                    'other': sum(1 for item in running_tasks if item.get('state') != 'running'),
+                    'running': sum(
+                        1 for item in running_tasks
+                        if str(item.get('state', '')).strip().lower() == 'running'
+                    ),
+                    'other': sum(
+                        1 for item in running_tasks
+                        if str(item.get('state', '')).strip().lower() != 'running'
+                    ),
                 }
-                history = getMatcherHistory(request, system, token, limit=1000)
-                systemData['history'] = history or []
+                systemData['history'] = [
+                    item for item in (history or [])
+                    if str(item.get('state', '')).strip().lower() not in active_run_states
+                ]
             elif 'total_products_fetched' in status:
                 systemData['info'] = buildInfoStringCsafSync(system, status)
             if request.user.has_perm(RIGHT_SYNC_START):
@@ -492,7 +505,7 @@ class Synchronisers(View):
             if request.user.has_perm(RIGHT_SYNC_CLEAR):
                 systemData['canClear'] = True
             data.append(systemData)
-        component_order = {'assetsync': 0, 'csafsync': 1, 'matcher': 2, 'sync': 3}
+        component_order = {'matcher': 0, 'assetsync': 1, 'csafsync': 2, 'sync': 3}
         data.sort(key=lambda row: (component_order.get(row.get('component', 'sync'), 99), row.get('name', '')))
 
         return render(request, 'csaf/synchronisers.html', {

@@ -67,8 +67,13 @@
                     <th>Task</th>
                     <th>State</th>
                     <th>Started</th>
+                    <th>Started By</th>
                     <th>Progress</th>
+                    <th>Pairs</th>
+                    <th>Matches</th>
                     <th>Scope</th>
+                    <th>Custom</th>
+                    <th>Config Hash</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -78,6 +83,7 @@
                       <td>#{{ item.id }}</td>
                       <td>{{ item.state }}</td>
                       <td>{{ item.start_time }}</td>
+                      <td>{{ item.trigger_label|default:"-" }}</td>
                       <td>
                         {% if item.progress_pct is not None %}
                           <div class="progress" style="height: 0.65rem;">
@@ -88,7 +94,11 @@
                           -
                         {% endif %}
                       </td>
+                      <td>{{ item.processed_pairs|default:0 }}/{{ item.total_pairs|default:0 }}</td>
+                      <td>{{ item.matches_found|default:0 }}</td>
                       <td>{{ item.details|default:"-" }}</td>
+                      <td>{% if item.force_recompute %}Yes{% else %}No{% endif %}</td>
+                      <td><small>{{ item.matching_config_hash|default:"-" }}</small></td>
                       <td>
                         {% if row.canStop %}
                           {% if item.state == "running" %}
@@ -172,7 +182,7 @@
                 {% endif %}
               </div>
 
-              <details class="mt-2">
+              <details class="mt-2" data-refresh-exclude>
                 <summary>Advanced options</summary>
                 <div class="mt-2" style="min-width: 22rem;">
                   <label class="form-label mb-1" for="matching-config-mode-{{ row.index }}">Weight input mode</label>
@@ -292,7 +302,7 @@
     }
 
     function isRefreshExcludedElement(el) {
-      return el.matches('button, a.btn, a[role="button"]');
+      return el.matches('[data-refresh-exclude]');
     }
 
     function syncAttributes(currentEl, nextEl) {
@@ -349,14 +359,6 @@
         var nextChild = nextEl.childNodes[i];
 
         if (!nextChild) {
-          if (
-            currentChild &&
-            currentChild.nodeType === Node.ELEMENT_NODE &&
-            isRefreshExcludedElement(currentChild)
-          ) {
-            i += 1;
-            continue;
-          }
           if (currentChild) {
             currentChild.remove();
           }
@@ -381,7 +383,11 @@
     var interactionHoldoffMs = 1200;
     var lastInteractionAt = 0;
 
-    function markInteraction() {
+    function markInteraction(event) {
+      var target = event && event.target;
+      if (target && target.closest && target.closest('[data-refresh-exclude]')) {
+        return;
+      }
       lastInteractionAt = Date.now();
     }
 
@@ -399,9 +405,6 @@
       if (Date.now() - lastInteractionAt < interactionHoldoffMs) {
         return;
       }
-      if (document.querySelector('details[open]')) {
-        return;
-      }
       var active = document.activeElement;
       if (
         active && (
@@ -412,7 +415,9 @@
           active.tagName === 'A'
         )
       ) {
-        return;
+        if (!active.closest('[data-refresh-exclude]')) {
+          return;
+        }
       }
 
       isRefreshing = true;
