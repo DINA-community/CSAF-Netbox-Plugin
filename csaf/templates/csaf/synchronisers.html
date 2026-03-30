@@ -9,6 +9,7 @@
 {% load render_table from django_tables2 %}
 
 {% block content %}
+<div id="synchronisers-content">
 <div class="row mb-3">
   {% for row in data %}
     <div class="col-12 mb-3">
@@ -265,6 +266,7 @@
   </div>
 </div>
 {% endif %}
+</div>
 <script>
   (function() {
     function updateMatchingMode(selectEl) {
@@ -280,26 +282,161 @@
       fieldsPanel.style.display = mode === 'fields' ? '' : 'none';
     }
 
-    document.querySelectorAll('[data-matching-mode-select]').forEach(function(selectEl) {
-      updateMatchingMode(selectEl);
-      selectEl.addEventListener('change', function() {
+    function bindMatchingMode(rootEl) {
+      rootEl.querySelectorAll('[data-matching-mode-select]').forEach(function(selectEl) {
         updateMatchingMode(selectEl);
+        selectEl.addEventListener('change', function() {
+          updateMatchingMode(selectEl);
+        });
       });
+    }
+
+    function isRefreshExcludedElement(el) {
+      return el.matches('button, a.btn, a[role="button"]');
+    }
+
+    function syncAttributes(currentEl, nextEl) {
+      Array.from(currentEl.attributes).forEach(function(attr) {
+        if (!nextEl.hasAttribute(attr.name)) {
+          currentEl.removeAttribute(attr.name);
+        }
+      });
+
+      Array.from(nextEl.attributes).forEach(function(attr) {
+        if (currentEl.getAttribute(attr.name) !== attr.value) {
+          currentEl.setAttribute(attr.name, attr.value);
+        }
+      });
+    }
+
+    function syncNode(currentNode, nextNode) {
+      if (!currentNode || !nextNode) {
+        return;
+      }
+
+      if (currentNode.nodeType !== nextNode.nodeType) {
+        currentNode.replaceWith(nextNode.cloneNode(true));
+        return;
+      }
+
+      if (currentNode.nodeType === Node.TEXT_NODE) {
+        if (currentNode.textContent !== nextNode.textContent) {
+          currentNode.textContent = nextNode.textContent;
+        }
+        return;
+      }
+
+      if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      var currentEl = currentNode;
+      var nextEl = nextNode;
+      if (currentEl.tagName !== nextEl.tagName) {
+        currentEl.replaceWith(nextEl.cloneNode(true));
+        return;
+      }
+
+      if (isRefreshExcludedElement(currentEl)) {
+        return;
+      }
+
+      syncAttributes(currentEl, nextEl);
+
+      var i = 0;
+      while (i < nextEl.childNodes.length || i < currentEl.childNodes.length) {
+        var currentChild = currentEl.childNodes[i];
+        var nextChild = nextEl.childNodes[i];
+
+        if (!nextChild) {
+          if (
+            currentChild &&
+            currentChild.nodeType === Node.ELEMENT_NODE &&
+            isRefreshExcludedElement(currentChild)
+          ) {
+            i += 1;
+            continue;
+          }
+          if (currentChild) {
+            currentChild.remove();
+          }
+          continue;
+        }
+
+        if (!currentChild) {
+          currentEl.appendChild(nextChild.cloneNode(true));
+          i += 1;
+          continue;
+        }
+
+        syncNode(currentChild, nextChild);
+        i += 1;
+      }
+    }
+
+    bindMatchingMode(document);
+
+    var refreshIntervalMs = 100;
+    var isRefreshing = false;
+    var interactionHoldoffMs = 1200;
+    var lastInteractionAt = 0;
+
+    function markInteraction() {
+      lastInteractionAt = Date.now();
+    }
+
+    ['pointerdown', 'click', 'touchstart', 'keydown', 'focusin'].forEach(function(eventName) {
+      document.addEventListener(eventName, markInteraction, true);
     });
 
-    var refreshIntervalMs = 10000;
     setInterval(function() {
+      if (isRefreshing) {
+        return;
+      }
       if (document.hidden) {
+        return;
+      }
+      if (Date.now() - lastInteractionAt < interactionHoldoffMs) {
         return;
       }
       if (document.querySelector('details[open]')) {
         return;
       }
       var active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+      if (
+        active && (
+          active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.tagName === 'SELECT' ||
+          active.tagName === 'BUTTON' ||
+          active.tagName === 'A'
+        )
+      ) {
         return;
       }
-      window.location.reload();
+
+      isRefreshing = true;
+      fetch(window.location.href, { cache: 'no-store' })
+        .then(function(response) {
+          return response.text();
+        })
+        .then(function(html) {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, 'text/html');
+          var nextContent = doc.getElementById('synchronisers-content');
+          var currentContent = document.getElementById('synchronisers-content');
+          if (!nextContent || !currentContent) {
+            return;
+          }
+          syncNode(currentContent, nextContent);
+          bindMatchingMode(currentContent);
+        })
+        .catch(function() {
+          // Keep current content if refresh fails.
+        })
+        .finally(function() {
+          isRefreshing = false;
+        });
     }, refreshIntervalMs);
   })();
 </script>
