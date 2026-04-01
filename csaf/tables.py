@@ -266,6 +266,11 @@ class CsafMatchListForModuleTable(NetBoxTable):
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
     )
+    vulnerabilities = tables.Column(
+        empty_values=(),
+        verbose_name='Vulnerabilities',
+        orderable=False,
+    )
     comparison = tables.Column(
         empty_values=(),
         verbose_name='Comparison',
@@ -283,8 +288,8 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
-        fields = ('id', 'asset', 'type', 'product_name_id', 'csaf_document', 'tracking_id', 'link', 'score', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description')
-        default_columns = ('id', 'asset', 'type', 'product_name_id', 'csaf_document', 'tracking_id', 'link', 'score', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description')
+        fields = ('id', 'asset', 'type', 'product_name_id', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description')
+        default_columns = ('id', 'asset', 'type', 'product_name_id', 'csaf_document', 'tracking_id', 'link', 'score', 'vulnerabilities', 'comparison', 'time', 'acceptance_status', 'remediation_status', 'description')
 
     def render_asset(self, record):
         asset = get_match_asset(record)
@@ -294,6 +299,9 @@ class CsafMatchListForModuleTable(NetBoxTable):
 
     def render_comparison(self, record):
         return render_compare_link(record)
+
+    def render_vulnerabilities(self, record):
+        return render_vulnerability_links(record)
 
     def render_type(self, record):
         return get_match_asset_type(record)

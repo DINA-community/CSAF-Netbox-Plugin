@@ -1441,7 +1441,9 @@ class CsafMatchView(generic.ObjectView):
             if instance.acceptance_status != target_acceptance_status:
                 instance.acceptance_status = target_acceptance_status
                 instance.save(update_fields=['acceptance_status'])
-                messages.success(request, "Updated acceptance status.")
+            if target_acceptance_status == models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                instance.sync_vulnerability_remediations()
+            messages.success(request, "Updated acceptance status.")
             return redirect(request.path)
 
         vulnerability_id = request.POST.get('vulnerability_id')
@@ -1744,6 +1746,7 @@ def setAcceptedStatusFor(queryset, matchId, targetStatus, request):
             count += 1
             # ToDo: Add config check if findings need to be created
             if targetStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
+                csafMatch.sync_vulnerability_remediations()
                 doc = csafMatch.csaf_document
                 data = gatherProductInfoFromDoc(doc, csafMatch.product_name_id)
                 createFindingsFromData(csafMatch, data)
@@ -1874,16 +1877,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
 
-            selected_objects = children.filter(
-                pk__in=request.POST.getlist('pk'),
-            )
-            with transaction.atomic():
-                count = 0
-                for csafMatch in selected_objects:
-                    csafMatch.acceptance_status = targetAccStatus
-                    csafMatch.save()
-                    count += 1
-            messages.success(request, f"Updated {count} CSAF-Matches")
+            setAcceptedStatusFor(children, request.POST.getlist('pk'), targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
             elif targetAccStatus in (
@@ -2780,14 +2774,20 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
             software=obj,
             acceptance_status__in=[
                 models.CsafMatch.AcceptanceStatus.NEW,
-                models.CsafMatch.AcceptanceStatus.CONFIRMED,
                 models.CsafMatch.AcceptanceStatus.REOPENED])
             .count(),
         permission='csaf.view_csafmatch'
     )
 
     def get_children_for(self, parent):
-        return self.child_model.objects.filter(software=parent)
+        return self.child_model.objects.filter(
+                software=parent
+            ).filter(
+                acceptance_status__in=[
+                    models.CsafMatch.AcceptanceStatus.NEW,
+                    models.CsafMatch.AcceptanceStatus.REOPENED
+                ]
+            )
 
 
 # Confirmed CsafMatches view for one Software
@@ -2983,6 +2983,13 @@ class CsafVulnerabilityListForDeviceView(CsafVulnerabilityListForAsset):
     )
 
     def get_children_for(self, parent):
+        confirmed_matches = models.CsafMatch.objects.filter(
+            device=parent,
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+        ).select_related('csaf_document').prefetch_related('csaf_document__vulnerabilities')
+        for match in confirmed_matches:
+            match.sync_vulnerability_remediations()
+
         return self.child_model.objects.filter(
             match__device=parent,
             match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
@@ -3010,6 +3017,13 @@ class CsafVulnerabilityListForModuleView(CsafVulnerabilityListForAsset):
     )
 
     def get_children_for(self, parent):
+        confirmed_matches = models.CsafMatch.objects.filter(
+            module=parent,
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+        ).select_related('csaf_document').prefetch_related('csaf_document__vulnerabilities')
+        for match in confirmed_matches:
+            match.sync_vulnerability_remediations()
+
         return self.child_model.objects.filter(
             match__module=parent,
             match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
@@ -3037,6 +3051,13 @@ class CsafVulnerabilityListForSoftwareView(CsafVulnerabilityListForAsset):
     )
 
     def get_children_for(self, parent):
+        confirmed_matches = models.CsafMatch.objects.filter(
+            software=parent,
+            acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,
+        ).select_related('csaf_document').prefetch_related('csaf_document__vulnerabilities')
+        for match in confirmed_matches:
+            match.sync_vulnerability_remediations()
+
         return self.child_model.objects.filter(
             match__software=parent,
             match__acceptance_status=models.CsafMatch.AcceptanceStatus.CONFIRMED,

@@ -395,8 +395,7 @@ def createMatchForData(data):
         serializer = CsafMatchSerializer(data=data)
         try:
             serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return serializer.data.get('id')
+            entity = serializer.save()
         except (ValidationError, IntegrityError) as ex:
             print(f"Race: {device}, {module}, {software}, {csaf_document}, {product_name_id}")
             # Race condition, someone else just created the match
