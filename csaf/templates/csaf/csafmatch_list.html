@@ -1,5 +1,7 @@
 {% extends base_template %}
 {% load buttons %}
+{% load helpers %}
+{% load plugins %}
 {% load i18n %}
 {% load render_table from django_tables2 %}
 
@@ -21,17 +23,62 @@
 {% endblock %}
 
 {% block content %}
+
+  {% if base_template != 'generic/object_list.html' %}
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <a class="nav-link active" id="object-list-tab" data-bs-toggle="tab" data-bs-target="#object-list" type="button" role="tab" aria-controls="edit-form" aria-selected="true">
+        {% trans "Results" %}
+        <span class="badge text-bg-secondary total-object-count">{% if table.page.paginator.count %}{{ table.page.paginator.count }}{% else %}{{ total_count|default:"0" }}{% endif %}</span>
+      </a>
+    </li>
+    {% if filter_form %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="filters-form-tab" data-bs-toggle="tab" data-bs-target="#filters-form" type="button" role="tab" aria-controls="object-list" aria-selected="false">
+          {% trans "Filters" %}
+          {% if filter_form %}{% badge filter_form.changed_data|length bg_color="primary" %}{% endif %}
+        </button>
+      </li>
+    {% endif %}
+  </ul>
+  {% endif %}
+
   <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
+    {% if match_tabs %}
+      <ul class="nav nav-tabs mb-3">
+        {% for tab in match_tabs %}
+          <li class="nav-item">
+            <a class="nav-link {% if tab.active %}active{% endif %}" href="{% url tab.url %}">{{ tab.label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if false_positive_count %}
+      {% if include_false_positives %}
+        <div class="alert alert-warning py-2">
+          False positive matches are currently shown.
+          <a href="{{ return_url }}include_false_positives=0" class="alert-link">Hide false positives</a>
+        </div>
+      {% else %}
+        <div class="alert alert-info py-2">
+          There are {{ false_positive_count }} false positive match(es), currently hidden by default.
+          <a href="{{ return_url }}include_false_positives=1" class="alert-link">Show false positives</a>
+        </div>
+      {% endif %}
+    {% endif %}
 
     <div class="row mb-3">
+      {% if statusFilter %}
       <div class="col-auto table-controls noprint">
-        <a class="btn {% if status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
-        <a class="btn {% if status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
-        <a class="btn {% if status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
-        <a class="btn {% if status.R %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=R">Resolved</a>
-        <a class="btn {% if status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
+        <a class="btn {% if acceptance_status.N %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=N">New</a>
+        <a class="btn {% if acceptance_status.O %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=O">Reopened</a>
+        {% if statusFilterIncludeConfirmed %}
+          <a class="btn {% if acceptance_status.C %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=C">Confirmed</a>
+        {% endif %}
+        <a class="btn {% if acceptance_status.F %}btn-success{% else %}btn-gray{% endif %}" role="button" href="{{ return_url }}statusString={{ statusString }}&toggle=F">False Positive</a>
         &nbsp;&nbsp;
       </div>
+      {% endif %}
       <div class="col-auto table-controls noprint">
         <div class="input-group input-group-flat me-2 quicksearch" hx-disinherit="hx-select hx-swap">
           <input type="search" results="5" name="q" id="quicksearch" class="form-control" placeholder="{% trans "Quick search" %}"
@@ -71,8 +118,10 @@
           </div>
         {% endif %}
 
-      <input type="hidden" name="statusString" value="{{ statusString }}">
-      <input type="hidden" name="return_url" value="{{ return_url }}">
+      {% if statusFilter %}
+        <input type="hidden" name="statusString" value="{{ statusString }}">
+      {% endif %}
+      <input type="hidden" name="return_url" value="{{ return_url }}statusString={{ statusString }}">
       <div class="col col-md-12">
         <div class="card">
           <div class="htmx-container table-responsive" id="object_list">
@@ -83,34 +132,16 @@
         {% block bulk_buttons %}
             <div class="dropdown">
               <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Bulk Set Status" %}
+                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Bulk Set Acceptance Status" %}
               </button>
               <ul class="dropdown-menu">
+                {% for entry in enums.acceptance %}
                   <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="N">
-                    {% trans "New" %}
+                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetAccStatus" value="{{entry.value}}">
+                    {% trans entry.label %}
                     </button>
                   </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="O">
-                      {% trans "Reopened" %}
-                    </button>
-                  </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="C">
-                      {% trans "Confirmed" %}
-                    </button>
-                  </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="R">
-                      {% trans "Resolved" %}
-                    </button>
-                  </li>
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetStatus" value="F">
-                      {% trans "False Positive" %}
-                    </button>
-                  </li>
+                {% endfor %}
               </ul>
             </div>
           {% if 'bulk_delete' in actions %}

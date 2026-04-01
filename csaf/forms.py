@@ -3,8 +3,8 @@
 """
 
 import datetime
-from .models import CsafDocument, CsafMatch
-from dcim.models.devices import Device
+from .models import CsafDocument, CsafMatch, CsafVulnerability, CsafMatchVulnerabilityRemediation
+from dcim.models.devices import Device, Module
 from django import forms
 from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm, NetBoxModelBulkEditForm
 from utilities.forms.fields import DynamicModelMultipleChoiceField
@@ -18,7 +18,7 @@ class CsafDocumentForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafDocument
-        fields = ('id', 'title', 'docurl', 'version', 'lang', 'publisher')
+        fields = ('id', 'title', 'tracking_id', 'docurl', 'version', 'lang', 'publisher')
 
 
 class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
@@ -27,10 +27,24 @@ class CsafDocumentFilterForm(NetBoxModelFilterSetForm):
     """
     model = CsafDocument
     title = forms.CharField(required=False)
+    tracking_id = forms.CharField(required=False)
     docurl = forms.CharField(required=False)
     version = forms.CharField(required=False)
     lang = forms.CharField(required=False)
     publisher = forms.CharField(required=False)
+
+
+class CsafDocumentSearchForm(forms.Form):
+    """
+    Input form for searching CSAF documents by name/title in ISDuBA.
+    """
+    q = forms.CharField(required=False, label='Document name')
+    selected_docurls = forms.MultipleChoiceField(
+        required=False,
+        choices=(),
+        widget=forms.CheckboxSelectMultiple,
+        label='Matching documents',
+    )
 
 
 class CsafMatchForm(NetBoxModelForm):
@@ -39,7 +53,7 @@ class CsafMatchForm(NetBoxModelForm):
     """
     class Meta:
         model = CsafMatch
-        fields = ('id', 'device', 'software', 'csaf_document', 'score', 'time', 'status', 'description', 'product_name_id')
+        fields = ('id', 'device', 'module', 'software', 'csaf_document', 'score', 'time', 'acceptance_status', 'description', 'product_name_id')
 
 
 class CsafMatchFilterForm(NetBoxModelFilterSetForm):
@@ -51,6 +65,11 @@ class CsafMatchFilterForm(NetBoxModelFilterSetForm):
         queryset = Device.objects.all(),
         required = False,
         label = 'Device',
+    )
+    module_id = DynamicModelMultipleChoiceField(
+        queryset = Module.objects.all(),
+        required = False,
+        label = 'Module',
     )
     software_id = DynamicModelMultipleChoiceField(
         queryset = Software.objects.all(),
@@ -75,7 +94,51 @@ class CsafMatchFilterForm(NetBoxModelFilterSetForm):
 
 class CsafMatchBulkEditForm(NetBoxModelBulkEditForm):
     model = CsafMatch
-    status = forms.ChoiceField(
-        choices=CsafMatch.Status,
+    acceptance_status = forms.ChoiceField(
+        choices=CsafMatch.AcceptanceStatus,
         required=False
     )
+    remediation_status = forms.ChoiceField(
+        choices=CsafMatch.RemediationStatus,
+        required=False
+    )
+
+
+class CsafVulnerabilityForm(NetBoxModelForm):
+    """
+    Input Form for the CsafVulnerability model.
+    """
+    class Meta:
+        model = CsafVulnerability
+        fields = ('id', 'csaf_document', 'ordinal', 'vulnerability_id', 'cve', 'title', 'summary', 'cwe', 'cvss_base_score', 'product_ids')
+
+
+class CsafVulnerabilityFilterForm(NetBoxModelFilterSetForm):
+    """
+    Input Form for filtering CsafVulnerability objects.
+    """
+    model = CsafVulnerability
+    csaf_document_id = DynamicModelMultipleChoiceField(
+        queryset=CsafDocument.objects.all(),
+        required=False,
+        label='CSAF Document',
+    )
+    vulnerability_id = forms.CharField(required=False)
+    cve = forms.CharField(required=False)
+    title = forms.CharField(required=False)
+    cwe = forms.CharField(required=False)
+
+
+class CsafMatchVulnerabilityRemediationFilterForm(NetBoxModelFilterSetForm):
+    """
+    Input Form for filtering CsafMatchVulnerabilityRemediation objects.
+    """
+    model = CsafMatchVulnerabilityRemediation
+    csaf_document_id = DynamicModelMultipleChoiceField(
+        queryset=CsafDocument.objects.all(),
+        required=False,
+        label='CSAF Document',
+    )
+    cve = forms.CharField(required=False)
+    title = forms.CharField(required=False)
+    cwe = forms.CharField(required=False)

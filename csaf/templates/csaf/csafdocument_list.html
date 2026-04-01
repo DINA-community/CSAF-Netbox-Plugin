@@ -1,0 +1,12 @@
+{% extends 'generic/object_list.html' %}
+{% load i18n %}
+
+{% block extra_controls %}
+  {{ block.super }}
+  <a href="{% url 'plugins:csaf:csafdocument_add_by_name' %}" class="btn btn-primary">
+    <i class="mdi mdi-magnify-plus" aria-hidden="true"></i> {% trans "Add by Name" %}
+  </a>
+  <a href="{% url 'plugins:csaf:csafdocument_add_by_tracking_id' %}" class="btn btn-primary">
+    <i class="mdi mdi-barcode-scan" aria-hidden="true"></i> {% trans "Add by Tracking ID" %}
+  </a>
+{% endblock %}

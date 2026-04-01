@@ -2,11 +2,13 @@
     These classes are needed for bulk update and delete operations.
 """
 from .. import filtersets, models
-from .serializers import CsafDocumentSerializer, CsafMatchSerializer
+from .serializers import CsafDocumentSerializer, CsafMatchSerializer, CsafVulnerabilitySerializer
 from core.choices import JobIntervalChoices
 from datetime import timedelta
 from django.conf import settings
 from django.db import IntegrityError
+from django.db.models import Q
+from django.utils import timezone
 import requests
 from rq.utils import now
 from netbox.api.viewsets import NetBoxModelViewSet
@@ -34,6 +36,7 @@ class CsafDocumentForUrlView(NetBoxModelViewSet):
       {
         "docurl": "<url of the document>",
         "title": "Optional  title of the document",
+        "tracking_id": "Optional tracking id",
         "version": "Optional version",
         "lang": "Opional language",
         "publisher": "Opional publisher"
@@ -92,8 +95,14 @@ def truncate(length, data):
     return data
 
 def fetchLoadingDocuments():
-    query = models.CsafDocument.objects.filter(title = TITLE_LOADING)
+    now_ts = timezone.now()
+    query = models.CsafDocument.objects.filter(
+        Q(title=TITLE_LOADING) |
+        (Q(title=TITLE_FAILED) & (Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now_ts)))
+    )
     token = False
+    verify_ssl = getDocumentVerifySsl()
+    retry_interval = getDocumentRetryInterval()
     for doc in query:
         docurl = doc.docurl
         if not token:
@@ -105,36 +114,158 @@ def fetchLoadingDocuments():
             print(f"Requesting: {docurl}")
             result = requests.get(
                 url=docurl,
-                headers=headers
+                headers=headers,
+                verify=verify_ssl,
             )
             jsonDoc = result.json()
             code = getFromJson(jsonDoc, ('code',), 200)
             if code == 404:
                 doc.title = TITLE_NOT_FOUND
+                doc.tracking_id = None
+                doc.product_tree = None
+                doc.next_retry_at = None
+                models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
             else:
                 doc.lang = truncate(20, getFromJson(jsonDoc, ('document','lang'), None))
                 doc.title = truncate(1000, getFromJson(jsonDoc, ('document','title'), 'No Title'))
+                doc.tracking_id = truncate(255, getFromJson(jsonDoc, ('document', 'tracking', 'id'), None))
                 doc.version = truncate(50, getFromJson(jsonDoc, ('document','tracking', 'version'), None))
                 doc.publisher = truncate(100, getFromJson(jsonDoc, ('document','publisher', 'name'), None))
+                product_tree = getFromJson(jsonDoc, ('product_tree',), None)
+                if product_tree is None:
+                    product_tree = getFromJson(jsonDoc, ('document', 'product_tree'), None)
+                doc.product_tree = product_tree
+                doc.next_retry_at = None
+                syncVulnerabilitiesForDocument(doc, jsonDoc)
             print(f"Loaded: {doc.title}")
             doc.save()
         except requests.exceptions.RequestException as ex:
             print("Failed to fetch document")
             print(ex)
-            doc.title = TITLE_FAILED
-            if not doc.version or int(doc.version) != doc.version:
-                doc.version = 1
-            else:
-                doc.version = int(doc.version) + 1
-            doc.save()
+            markDocumentForRetry(doc, retry_interval)
         except Exception as e:
             print(e)
-            doc.title = TITLE_FAILED
-            if not doc.version or int(doc.version) != doc.version:
-                doc.version = 1
-            else:
-                doc.version = int(doc.version) + 1
-            doc.save()
+            markDocumentForRetry(doc, retry_interval)
+
+
+def markDocumentForRetry(doc, retry_interval):
+    doc.title = TITLE_FAILED
+    doc.product_tree = None
+    doc.next_retry_at = timezone.now() + timedelta(minutes=retry_interval)
+    models.CsafVulnerability.objects.filter(csaf_document=doc).delete()
+
+    try:
+        version_int = int(str(doc.version))
+    except (TypeError, ValueError):
+        version_int = 0
+    doc.version = str(version_int + 1)
+    doc.save()
+
+
+def getBaseScore(vulnerability):
+    scores = getFromJson(vulnerability, ('scores',), [])
+    if not isinstance(scores, list):
+        return None
+
+    best = None
+    for score in scores:
+        base_score = getFromJson(score, ('cvss_v3', 'baseScore'), None)
+        try:
+            base_score = float(base_score)
+        except (TypeError, ValueError):
+            continue
+        if best is None or base_score > best:
+            best = base_score
+    return best
+
+
+def getSummary(vulnerability):
+    notes = getFromJson(vulnerability, ('notes',), [])
+    if not isinstance(notes, list):
+        return None
+
+    for note in notes:
+        text = getFromJson(note, ('text',), None)
+        if text:
+            return truncate(10000, text)
+    return None
+
+
+def collectProductIds(data):
+    """
+    Recursively collect product IDs from CSAF structures.
+    """
+    values = set()
+    if isinstance(data, str):
+        value = data.strip()
+        if value:
+            values.add(value)
+    elif isinstance(data, list):
+        for item in data:
+            values.update(collectProductIds(item))
+    elif isinstance(data, dict):
+        for item in data.values():
+            values.update(collectProductIds(item))
+    return values
+
+
+def getProductIds(vulnerability):
+    product_ids = set()
+
+    # CSAF vulnerability-to-product mapping is encoded in product_status.
+    product_status = getFromJson(vulnerability, ('product_status',), {})
+    if isinstance(product_status, dict):
+        for ids in product_status.values():
+            product_ids.update(collectProductIds(ids))
+
+    # Some producers add a direct list on the vulnerability itself.
+    product_ids.update(collectProductIds(getFromJson(vulnerability, ('product_ids',), [])))
+
+    # Some producers embed product references in remediations/threats/flags.
+    for remediation in getFromJson(vulnerability, ('remediations',), []):
+        if isinstance(remediation, dict):
+            product_ids.update(collectProductIds(remediation.get('product_ids', [])))
+    for threat in getFromJson(vulnerability, ('threats',), []):
+        if isinstance(threat, dict):
+            product_ids.update(collectProductIds(threat.get('product_ids', [])))
+    for flag in getFromJson(vulnerability, ('flags',), []):
+        if isinstance(flag, dict):
+            product_ids.update(collectProductIds(flag.get('product_ids', [])))
+
+    return sorted(product_ids)
+
+
+def syncVulnerabilitiesForDocument(doc, jsonDoc):
+    vulnerabilities = getFromJson(jsonDoc, ('vulnerabilities',), [])
+    if not isinstance(vulnerabilities, list):
+        vulnerabilities = []
+
+    kept_ordinals = []
+    for index, vulnerability in enumerate(vulnerabilities):
+        ordinal = index + 1
+        vulnerability_id = getFromJson(vulnerability, ('cve',), None)
+        vulnerability_id = vulnerability_id or getFromJson(vulnerability, ('id',), None)
+        vulnerability_id = vulnerability_id or f'vuln-{ordinal}'
+
+        data = {
+            'vulnerability_id': truncate(255, str(vulnerability_id)),
+            'cve': truncate(100, getFromJson(vulnerability, ('cve',), None)),
+            'title': truncate(1000, getFromJson(vulnerability, ('title',), None)),
+            'summary': getSummary(vulnerability),
+            'cwe': truncate(255, getFromJson(vulnerability, ('cwe', 'id'), None)),
+            'cvss_base_score': getBaseScore(vulnerability),
+            'product_ids': getProductIds(vulnerability),
+        }
+        models.CsafVulnerability.objects.update_or_create(
+            csaf_document=doc,
+            ordinal=ordinal,
+            defaults=data,
+        )
+        kept_ordinals.append(ordinal)
+
+    models.CsafVulnerability.objects.filter(csaf_document=doc).exclude(ordinal__in=kept_ordinals).delete()
+    for match in models.CsafMatch.objects.filter(csaf_document=doc):
+        match.sync_vulnerability_remediations()
 
 
 def getFromJson(document, path, dflt):
@@ -149,6 +280,26 @@ def getFromJson(document, path, dflt):
         return dflt
     except Exception:
         return dflt
+
+def getDocumentVerifySsl():
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'document_verify_ssl'), None)
+    verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_document_verify_ssl'), verify_ssl)
+    if verify_ssl is None:
+        verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'verify_ssl'), True)
+        verify_ssl = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_verify_ssl'), verify_ssl)
+    return verify_ssl
+
+
+def getDocumentRetryInterval():
+    interval = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba', 'document_retry_interval_minutes'), None)
+    interval = getFromJson(settings.PLUGINS_CONFIG, ('csaf', 'isduba_document_retry_interval_minutes'), interval)
+    try:
+        interval = int(interval)
+    except (TypeError, ValueError):
+        interval = 60
+    if interval < 1:
+        interval = 1
+    return interval
 
 def getToken() -> str:
     """Retrieve an access token via Keycloak."""
@@ -219,12 +370,13 @@ class CsafMatchViewSet(NetBoxModelViewSet):
 def createMatchForData(data):
     csaf_document = data.get('csaf_document')
     device = data.get('device')
+    module = data.get('module')
     software = data.get('software')
     product_name_id = data.get('product_name_id')
-    query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
+    query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, module=module, software=software, product_name_id=product_name_id)
     try:
         entity = query.get()
-        print(f"Duplicate: {device}, {software}, {csaf_document}, {product_name_id}")
+        print(f"Duplicate: {device}, {module}, {software}, {csaf_document}, {product_name_id}")
         score = data.get('score', 0)
         description = data.get('description', '')
         if entity.score < score:
@@ -234,21 +386,30 @@ def createMatchForData(data):
             entity.description += description
             entity.description += f'\nScore increased from {entity.score} to {score}'
             entity.score = score
-            if entity.status == models.CsafMatch.Status.FALSE_POSITIVE:
-                entity.status = models.CsafMatch.Status.REOPENED
+            if entity.acceptance_status == models.CsafMatch.AcceptanceStatus.FALSE_POSITIVE:
+                entity.acceptance_status = models.CsafMatch.AcceptanceStatus.REOPENED
                 entity.description += f'\nReopened'
             entity.save()
     except models.CsafMatch.DoesNotExist:
-        print(f"New: {device}, {software}, {csaf_document}, {product_name_id}")
+        print(f"New: {device}, {module}, {software}, {csaf_document}, {product_name_id}")
         serializer = CsafMatchSerializer(data=data)
         try:
             serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return serializer.data.get('id')
+            entity = serializer.save()
         except (ValidationError, IntegrityError) as ex:
-            print(f"Race: {device}, {software}, {csaf_document}, {product_name_id}")
+            print(f"Race: {device}, {module}, {software}, {csaf_document}, {product_name_id}")
             # Race condition, someone else just created the match
-            query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, software=software, product_name_id=product_name_id)
+            query = models.CsafMatch.objects.filter(csaf_document = csaf_document, device=device, module=module, software=software, product_name_id=product_name_id)
             entity = query.get()
 
+    entity.sync_vulnerability_remediations()
     return CsafMatchSerializer(entity).data.get('id')
+
+
+class CsafVulnerabilityViewSet(NetBoxModelViewSet):
+    """
+    ViewSet for CsafVulnerability.
+    """
+    queryset = models.CsafVulnerability.objects.all()
+    serializer_class = CsafVulnerabilitySerializer
+    filterset_class = filtersets.CsafVulnerabilityFilterSet

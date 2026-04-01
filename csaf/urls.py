@@ -10,5 +10,11 @@ urlpatterns = (
     path('csafmatch/', include(get_model_urls('csaf', 'csafmatch', detail=False))),
     path('csafmatch/<int:pk>/', include(get_model_urls('csaf', 'csafmatch'))),
 
+    path('csafvulnerability/', include(get_model_urls('csaf', 'csafvulnerability', detail=False))),
+    path('csafvulnerability/<int:pk>/', include(get_model_urls('csaf', 'csafvulnerability'))),
+
     path('synchronisers/', views.Synchronisers.as_view(), name='synchronisers'),
+    path('config/', views.Config.as_view(), name='config'),
+    path('update-config/', views.UpdateConfigView.as_view(), name='update-config'),
+    path('dashboard/', views.Dashboard.as_view(), name='dashboard'),
 )

@@ -1,0 +1,164 @@
+{% extends 'generic/object.html' %}
+{% load helpers %}
+{% load i18n %}
+
+{% block extra_controls %}
+  <div class="controls">
+    <div class="control-group">
+      <a class="btn btn-outline-primary" href="{{ object.get_absolute_url }}">
+        {% trans "Back to Match" %}
+      </a>
+    </div>
+  </div>
+{% endblock extra_controls %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">{% trans "NetBox Asset Data" %}</h5>
+        <table class="table table-hover attr-table mb-0">
+          <tbody>
+            {% for key, value in asset_fields.items %}
+              <tr>
+                <th scope="row">{{ key }}</th>
+                <td>
+                  {% if key == 'Asset' and asset %}
+                    {{ asset|linkify }}
+                  {% else %}
+                    {{ value|placeholder }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">{% trans "CSAF Product Data" %}</h5>
+        <table class="table table-hover attr-table mb-0">
+          <tbody>
+            {% if product_fields %}
+              {% for key, value in product_fields.items %}
+                <tr>
+                  <th scope="row">{{ key }}</th>
+                  <td>{{ value|placeholder }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td class="text-muted">{% trans "No product found in CSAF product tree for this product ID." %}</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col col-md-12">
+      <div class="card">
+        <h5 class="card-header">{% trans "Field Comparison" %}</h5>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>{% trans "Field" %}</th>
+                <th>{% trans "Asset" %}</th>
+                <th class="text-center">{% trans "Transfer" %}</th>
+                <th>{% trans "CSAF Product" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in comparison_rows %}
+                <tr>
+                  <td>{{ row.field }}</td>
+                  <td>
+                    <span class="{% if row.is_identical %}text-success{% else %}text-danger{% endif %}">
+                      {{ row.asset_value }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    {% if row.transferable %}
+                      {% if transfer_edit_field == row.field_key %}
+                        <form method="post" class="d-inline-flex align-items-center gap-1">
+                          {% csrf_token %}
+                          <input type="hidden" name="transfer_action" value="apply">
+                          <input type="hidden" name="transfer_field" value="{{ row.field_key }}">
+                          <input
+                            type="text"
+                            name="transfer_value"
+                            value="{{ row.edit_value|default_if_none:'' }}"
+                            class="form-control form-control-sm"
+                            style="min-width: 12rem;"
+                          >
+                          <button
+                            type="submit"
+                            class="btn btn-sm btn-primary"
+                            title="{% trans 'Apply transfer' %}"
+                            aria-label="{% trans 'Apply transfer' %}"
+                          >
+                            <i class="mdi mdi-check"></i>
+                          </button>
+                          <a
+                            href="{{ request.path }}"
+                            class="btn btn-sm btn-outline-secondary"
+                            title="{% trans 'Cancel transfer' %}"
+                            aria-label="{% trans 'Cancel transfer' %}"
+                          >
+                            <i class="mdi mdi-close"></i>
+                          </a>
+                        </form>
+                        {% if row.edits_type_definition %}
+                          <div class="mt-1">
+                            <small class="text-warning">
+                              <i class="mdi mdi-alert-outline"></i>
+                              {% trans "Edits type definition" %}
+                            </small>
+                          </div>
+                        {% endif %}
+                      {% else %}
+                        <form method="post" class="d-inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="transfer_action" value="prepare">
+                          <input type="hidden" name="transfer_field" value="{{ row.field_key }}">
+                          <input type="hidden" name="transfer_value" value="{{ row.product_raw|default_if_none:'' }}">
+                          <button
+                            type="submit"
+                            class="btn btn-sm btn-outline-primary"
+                            title="{% trans 'Transfer to asset' %}"
+                            aria-label="{% trans 'Transfer to asset' %}"
+                          >
+                            <i class="mdi mdi-arrow-left-bold"></i>
+                          </button>
+                        </form>
+                        {% if row.edits_type_definition %}
+                          <div class="mt-1">
+                            <small class="text-warning">
+                              <i class="mdi mdi-alert-outline"></i>
+                              {% trans "Edits type definition" %}
+                            </small>
+                          </div>
+                        {% endif %}
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="{% if row.is_identical %}text-success{% else %}text-danger{% endif %}">
+                      {{ row.product_value }}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

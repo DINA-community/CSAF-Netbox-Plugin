@@ -9,45 +9,249 @@
 {% load render_table from django_tables2 %}
 
 {% block content %}
+<div id="synchronisers-content">
 <div class="row mb-3">
+  {% for row in data %}
+    <div class="col-12 mb-3">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ row.component_label }}</strong>
+            <span class="text-muted">({{ row.name }})</span>
+          </div>
+          <span class="badge text-bg-{{ row.state_badge_class }}">{{ row.state }}</span>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-6 col-lg-4">
+              <div><span class="text-muted">Last Sync:</span> {{ row.lastSync }}</div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div><span class="text-muted">Started:</span> {{ row.started }}</div>
+            </div>
+            {% if row.running_summary %}
+              <div class="col-md-6 col-lg-4">
+                <div>
+                  <span class="text-muted">Tasks:</span>
+                  <span class="badge text-bg-success">{{ row.running_summary.running }} running</span>
+                  {% if row.running_summary.other %}
+                    <span class="badge text-bg-secondary">{{ row.running_summary.other }} other</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
 
-  <div class="col col-md-12">
-    <div class="card">
-      <div class="card-body table-responsive">
-        <table class="table">
-          <tr>
-            <th>Name</th>
-            <th>Last Sync</th>
-            <th>State</th>
-            <th>Started</th>
-            <th>Actions</th>
-          </tr>
-          {% for row in data %}
-            <tr>
-              <td>{{ row.name }}</td>
-              <td>{{ row.lastSync }}</td>
-              <td>
-                {{ row.state }}
-                <ul>
-                {% for key,value in row.info.items %}
-                  <li>{{ key }}: {{ value }}</li>
-                {% endfor %}
-                </ul>
-              </td>
-              <td>{{ row.started }}</td>
-              <td>
-                {% if row.state == "stopped" %}<a class="btn btn-info" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>{% endif %}
-                {% if row.state == "running" %}<a class="btn btn-info" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop</a>{% endif %}
-                {% if row.clear %}
-                  {% for key,item in row.clear.items %}<a class="btn btn-info" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>{% endfor %}
+          <div class="row mb-3">
+            {% for metric in row.metric_cards %}
+              <div class="col-sm-6 col-lg-4 col-xl-2 mb-2">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">{{ metric.label }}</div>
+                  <div class="fw-bold">{{ metric.value|default:"-" }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if row.running %}
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <h6 class="mb-0">Running Tasks</h6>
+              {% if row.canStop %}
+                <a class="btn btn-sm btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}">Stop All</a>
+              {% endif %}
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>State</th>
+                    <th>Started</th>
+                    <th>Started By</th>
+                    <th>Progress</th>
+                    <th>Pairs</th>
+                    <th>Matches</th>
+                    <th>Scope</th>
+                    <th>Custom</th>
+                    <th>Config Hash</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in row.running %}
+                    <tr>
+                      <td>#{{ item.id }}</td>
+                      <td>{{ item.state }}</td>
+                      <td>{{ item.start_time }}</td>
+                      <td>{{ item.trigger_label|default:"-" }}</td>
+                      <td>
+                        {% if item.progress_pct is not None %}
+                          <div class="progress" style="height: 0.65rem;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ item.progress_pct }}%;" aria-valuenow="{{ item.progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                          </div>
+                          <small class="text-muted">{{ item.progress_pct }}%</small>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                      <td>{{ item.processed_pairs|default:0 }}/{{ item.total_pairs|default:0 }}</td>
+                      <td>{{ item.matches_found|default:0 }}</td>
+                      <td>{{ item.details|default:"-" }}</td>
+                      <td>{% if item.force_recompute %}Yes{% else %}No{% endif %}</td>
+                      <td><small>{{ item.matching_config_hash|default:"-" }}</small></td>
+                      <td>
+                        {% if row.canStop %}
+                          {% if item.state == "running" %}
+                            <a class="btn btn-sm btn-warning" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Stop</a>
+                          {% elif item.state == "stopped" %}
+                            <a class="btn btn-sm btn-secondary" role="button" href="{{ request.path }}?stop={{ row.index }}&task_id={{ item.id }}">Cancel</a>
+                          {% endif %}
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+          {% if row.component == "matcher" %}
+            <h6 class="mb-2">Previous Runs</h6>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>State</th>
+                    <th>Started</th>
+                    <th>Finished</th>
+                    <th>Started By</th>
+                    <th>Progress</th>
+                    <th>Pairs</th>
+                    <th>Matches</th>
+                    <th>Scope</th>
+                    <th>Custom</th>
+                    <th>Config Hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if row.history %}
+                    {% for item in row.history %}
+                      <tr>
+                        <td>#{{ item.id }}</td>
+                        <td>{{ item.state|default:"-" }}</td>
+                        <td>{{ item.start_time|default:"-" }}</td>
+                        <td>{{ item.finished_at|default:"-" }}</td>
+                        <td>{{ item.trigger_label|default:"-" }}</td>
+                        <td>
+                          {% if item.progress_pct is not None %}
+                            <div class="progress" style="height: 0.65rem;">
+                              <div class="progress-bar" role="progressbar" style="width: {{ item.progress_pct }}%;" aria-valuenow="{{ item.progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <small class="text-muted">{{ item.progress_pct }}%</small>
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                        <td>{{ item.processed_pairs|default:0 }}/{{ item.total_pairs|default:0 }}</td>
+                        <td>{{ item.matches_found|default:0 }}</td>
+                        <td>{{ item.details|default:"-" }}</td>
+                        <td>{% if item.force_recompute %}Yes{% else %}No{% endif %}</td>
+                        <td><small>{{ item.matching_config_hash|default:"-" }}</small></td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="11" class="text-muted">No previous runs found.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+
+          {% if row.component == "matcher" and row.canStart %}
+            <form method="post" action="{{ request.path }}" class="w-100">
+              {% csrf_token %}
+              <input type="hidden" name="start" value="{{ row.index }}">
+              <div class="d-flex flex-wrap gap-2 align-items-start">
+                <button class="btn btn-primary" type="submit">Start</button>
+                {% if row.clear and row.canClear %}
+                  {% for key,item in row.clear.items %}
+                    <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
+                  {% endfor %}
                 {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </table>
+              </div>
+
+              <details class="mt-2" data-refresh-exclude>
+                <summary>Advanced options</summary>
+                <div class="mt-2" style="min-width: 22rem;">
+                  <label class="form-label mb-1" for="matching-config-mode-{{ row.index }}">Weight input mode</label>
+                  <select
+                    class="form-select form-select-sm mb-2"
+                    id="matching-config-mode-{{ row.index }}"
+                    name="matching_config_mode"
+                    data-matching-mode-select
+                    data-json-target="matching-config-json-{{ row.index }}"
+                    data-fields-target="matching-config-fields-{{ row.index }}">
+                    <option value="json" selected>Free-text JSON</option>
+                    <option value="fields">Individual fields</option>
+                  </select>
+
+                  <div id="matching-config-json-{{ row.index }}" data-matching-mode-panel="json">
+                    <label class="form-label mb-1" for="matching-config-{{ row.index }}">Custom matcher weights (optional JSON)</label>
+                    <textarea
+                      class="form-control form-control-sm"
+                      id="matching-config-{{ row.index }}"
+                      name="matching_config"
+                      rows="4"
+                      placeholder='{"database":{"freetext_fields_weights":{"token":0.7,"ngram":0.2,"overlap":0.1}}}'></textarea>
+                  </div>
+
+                  <div id="matching-config-fields-{{ row.index }}" data-matching-mode-panel="fields" style="display:none;">
+                    {% for group in row.matcher_weight_field_groups %}
+                      <div class="border rounded p-2 mb-2">
+                        <div class="fw-semibold small mb-2">{{ group.title }}</div>
+                        <div class="row g-2">
+                          {% for field in group.fields %}
+                            <div class="col-sm-6 col-lg-4">
+                              <label class="form-label form-label-sm mb-1" for="weight-{{ row.index }}-{{ group.title|slugify }}-{{ field.name }}">{{ field.name }}</label>
+                              <input
+                                class="form-control form-control-sm"
+                                type="number"
+                                step="any"
+                                id="weight-{{ row.index }}-{{ group.title|slugify }}-{{ field.name }}"
+                                name="weight__{{ group.path|join:'__' }}__{{ field.name }}"
+                                value="{{ field.default }}">
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="true" id="force-recompute-{{ row.index }}" name="force_recompute">
+                    <label class="form-check-label" for="force-recompute-{{ row.index }}">Force recompute</label>
+                  </div>
+                </div>
+              </details>
+            </form>
+          {% else %}
+            <div class="d-flex flex-wrap gap-2 align-items-start">
+              {% if row.canStart %}
+                <a class="btn btn-primary" role="button" href="{{ request.path }}?start={{ row.index }}">Start</a>
+              {% endif %}
+              {% if row.clear and row.canClear %}
+                {% for key,item in row.clear.items %}
+                  <a class="btn btn-outline-danger" role="button" href="{{ request.path }}?clear={{ key }}&idx={{ row.index }}">Clear {{item.title }}</a>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
+  {% endfor %}
 </div>
 {% if error_help %}
 <div class="row mb-3">
@@ -72,4 +276,173 @@
   </div>
 </div>
 {% endif %}
+</div>
+<script>
+  (function() {
+    function updateMatchingMode(selectEl) {
+      var jsonTargetId = selectEl.getAttribute('data-json-target');
+      var fieldsTargetId = selectEl.getAttribute('data-fields-target');
+      var jsonPanel = document.getElementById(jsonTargetId);
+      var fieldsPanel = document.getElementById(fieldsTargetId);
+      if (!jsonPanel || !fieldsPanel) {
+        return;
+      }
+      var mode = selectEl.value;
+      jsonPanel.style.display = mode === 'json' ? '' : 'none';
+      fieldsPanel.style.display = mode === 'fields' ? '' : 'none';
+    }
+
+    function bindMatchingMode(rootEl) {
+      rootEl.querySelectorAll('[data-matching-mode-select]').forEach(function(selectEl) {
+        updateMatchingMode(selectEl);
+        selectEl.addEventListener('change', function() {
+          updateMatchingMode(selectEl);
+        });
+      });
+    }
+
+    function isRefreshExcludedElement(el) {
+      return el.matches('[data-refresh-exclude]');
+    }
+
+    function syncAttributes(currentEl, nextEl) {
+      Array.from(currentEl.attributes).forEach(function(attr) {
+        if (!nextEl.hasAttribute(attr.name)) {
+          currentEl.removeAttribute(attr.name);
+        }
+      });
+
+      Array.from(nextEl.attributes).forEach(function(attr) {
+        if (currentEl.getAttribute(attr.name) !== attr.value) {
+          currentEl.setAttribute(attr.name, attr.value);
+        }
+      });
+    }
+
+    function syncNode(currentNode, nextNode) {
+      if (!currentNode || !nextNode) {
+        return;
+      }
+
+      if (currentNode.nodeType !== nextNode.nodeType) {
+        currentNode.replaceWith(nextNode.cloneNode(true));
+        return;
+      }
+
+      if (currentNode.nodeType === Node.TEXT_NODE) {
+        if (currentNode.textContent !== nextNode.textContent) {
+          currentNode.textContent = nextNode.textContent;
+        }
+        return;
+      }
+
+      if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      var currentEl = currentNode;
+      var nextEl = nextNode;
+      if (currentEl.tagName !== nextEl.tagName) {
+        currentEl.replaceWith(nextEl.cloneNode(true));
+        return;
+      }
+
+      if (isRefreshExcludedElement(currentEl)) {
+        return;
+      }
+
+      syncAttributes(currentEl, nextEl);
+
+      var i = 0;
+      while (i < nextEl.childNodes.length || i < currentEl.childNodes.length) {
+        var currentChild = currentEl.childNodes[i];
+        var nextChild = nextEl.childNodes[i];
+
+        if (!nextChild) {
+          if (currentChild) {
+            currentChild.remove();
+          }
+          continue;
+        }
+
+        if (!currentChild) {
+          currentEl.appendChild(nextChild.cloneNode(true));
+          i += 1;
+          continue;
+        }
+
+        syncNode(currentChild, nextChild);
+        i += 1;
+      }
+    }
+
+    bindMatchingMode(document);
+
+    var refreshIntervalMs = 100;
+    var isRefreshing = false;
+    var interactionHoldoffMs = 1200;
+    var lastInteractionAt = 0;
+
+    function markInteraction(event) {
+      var target = event && event.target;
+      if (target && target.closest && target.closest('[data-refresh-exclude]')) {
+        return;
+      }
+      lastInteractionAt = Date.now();
+    }
+
+    ['pointerdown', 'click', 'touchstart', 'keydown', 'focusin'].forEach(function(eventName) {
+      document.addEventListener(eventName, markInteraction, true);
+    });
+
+    setInterval(function() {
+      if (isRefreshing) {
+        return;
+      }
+      if (document.hidden) {
+        return;
+      }
+      if (Date.now() - lastInteractionAt < interactionHoldoffMs) {
+        return;
+      }
+      var active = document.activeElement;
+      if (
+        active && (
+          active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.tagName === 'SELECT' ||
+          active.tagName === 'BUTTON' ||
+          active.tagName === 'A'
+        )
+      ) {
+        if (!active.closest('[data-refresh-exclude]')) {
+          return;
+        }
+      }
+
+      isRefreshing = true;
+      fetch(window.location.href, { cache: 'no-store' })
+        .then(function(response) {
+          return response.text();
+        })
+        .then(function(html) {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, 'text/html');
+          var nextContent = doc.getElementById('synchronisers-content');
+          var currentContent = document.getElementById('synchronisers-content');
+          if (!nextContent || !currentContent) {
+            return;
+          }
+          syncNode(currentContent, nextContent);
+          bindMatchingMode(currentContent);
+        })
+        .catch(function() {
+          // Keep current content if refresh fails.
+        })
+        .finally(function() {
+          isRefreshing = false;
+        });
+    }, refreshIntervalMs);
+  })();
+</script>
 {% endblock %}

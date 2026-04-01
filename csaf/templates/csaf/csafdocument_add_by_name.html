@@ -1,0 +1,97 @@
+{% extends 'generic/_base.html' %}
+{% load buttons %}
+{% load static %}
+{% load helpers %}
+{% load plugins %}
+{% load i18n %}
+{% load perms %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col col-md-12">
+      <div class="card">
+        <h5 class="card-header">Add CSAF Documents by Name</h5>
+        <div class="card-body">
+          <form method="get" class="row g-2 align-items-end mb-3">
+            <div class="col-md-9">
+              <label class="form-label" for="id_q">Document name</label>
+              <input class="form-control" type="text" id="id_q" name="q" value="{{ query|default:'' }}" placeholder="Enter part of the document title">
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="mdi mdi-magnify" aria-hidden="true"></i> Search ISDuBA
+              </button>
+            </div>
+          </form>
+
+          {% if query %}
+            <p class="text-muted">Found {{ result_count }} document(s) for "{{ query }}".</p>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="q" value="{{ query }}">
+              <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDocSelection(true)">Select all</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDocSelection(false)">Select none</button>
+              </div>
+              <div class="mb-3 table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th style="width: 1%;">Select</th>
+                      <th>Title</th>
+                      <th>Document URL</th>
+                      <th>Cross-check</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for entry in results %}
+                      <tr>
+                        <td>
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="selected_docurls"
+                            value="{{ entry.docurl }}"
+                            id="doc_{{ forloop.counter }}"
+                          >
+                        </td>
+                        <td>
+                          <label class="form-check-label" for="doc_{{ forloop.counter }}">
+                            {{ entry.title }}
+                          </label>
+                        </td>
+                        <td><code>{{ entry.docurl }}</code></td>
+                        <td>
+                          <a href="{{ entry.external_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">Open</a>
+                        </td>
+                      </tr>
+                    {% empty %}
+                      <tr>
+                        <td colspan="4" class="text-muted">No documents found.</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="mdi mdi-plus-thick" aria-hidden="true"></i> Add selected documents
+              </button>
+              <a href="{% url 'plugins:csaf:csafdocument_list' %}" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    function toggleDocSelection(checked) {
+      document.querySelectorAll('input[name="selected_docurls"]').forEach(function (el) {
+        el.checked = checked;
+      });
+    }
+  </script>
+{% endblock javascript %}

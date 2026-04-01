@@ -1,0 +1,142 @@
+{% extends 'generic/_base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col-12">
+    <h2 class="mb-1">CSAF Dashboard</h2>
+    <p class="text-muted mb-0">Initial draft with key matching/remediation metrics and direct navigation links.</p>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">New Matches</div>
+        <div class="display-6">{{ match_counts.new_count|default:0 }}</div>
+        <a href="{{ links.new_matches }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Reopened Matches</div>
+        <div class="display-6">{{ match_counts.reopened_count|default:0 }}</div>
+        <a href="{{ links.reopened_matches }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Confirmed Matches</div>
+        <div class="display-6">{{ match_counts.confirmed_count|default:0 }}</div>
+        <a href="{{ links.confirmed_matches }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">False Positives</div>
+        <div class="display-6">{{ match_counts.false_positive_count|default:0 }}</div>
+        <a href="{{ links.false_positives }}">Open list</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100 border-warning">
+      <div class="card-body">
+        <div class="text-muted">Open Remediations</div>
+        <div class="display-6">{{ remediation_counts.open_count|default:0 }}</div>
+        <a href="{{ links.open_remediations }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100 border-success">
+      <div class="card-body">
+        <div class="text-muted">Resolved Remediations</div>
+        <div class="display-6">{{ remediation_counts.resolved_count|default:0 }}</div>
+        <a href="{{ links.resolved_remediations }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">CSAF Documents</div>
+        <div class="display-6">{{ document_count|default:0 }}</div>
+        <a href="{{ links.documents }}">Open list</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Vulnerabilities</div>
+        <div class="display-6">{{ vulnerability_count|default:0 }}</div>
+        <a href="{{ links.vulnerabilities }}">Open list</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Matcher Run Status</span>
+        <a href="{{ links.synchronisers }}" class="btn btn-sm btn-outline-primary">Open Synchronisers</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Matcher</th>
+              <th>State</th>
+              <th>Running Tasks</th>
+              <th>Last Matching Run</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for matcher in matcher_statuses %}
+              <tr>
+                <td>{{ matcher.name }}</td>
+                <td>{{ matcher.state }}</td>
+                <td>{{ matcher.running_count|default:0 }}</td>
+                <td>{{ matcher.last_run_label }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="text-muted">No matcher configured.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Quick Links</div>
+      <div class="card-body d-flex flex-wrap gap-2">
+        <a href="{{ links.potential_matches }}" class="btn btn-outline-primary">Potential Matches</a>
+        <a href="{{ links.confirmed_matches }}" class="btn btn-outline-primary">Confirmed Matches</a>
+        <a href="{{ links.open_remediations }}" class="btn btn-outline-warning">Open Remediations</a>
+        <a href="{{ links.documents }}" class="btn btn-outline-secondary">CSAF Documents</a>
+        <a href="{{ links.vulnerabilities }}" class="btn btn-outline-secondary">Vulnerabilities</a>
+        <a href="{{ links.synchronisers }}" class="btn btn-outline-dark">Synchronisers</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
