@@ -77,17 +77,17 @@ This plugin depends on the [DDDC Plugin](https://github.com/DINA-community/DDDC-
 
 ### Set the proper netbox docker version
 
-The CSAF Plugin is only compatible with NetBox 4.3 and therefore with netbox-docker 3.2.1.
-For a new install, clone from tag 3.2.1:
+The CSAF Plugin is only compatible with NetBox 4.3 and therefore with netbox-docker 3.3.0.
+For a new install, clone from tag 3.3.0:
 
    ```bash
-   git clone -b 3.2.1 https://github.com/netbox-community/netbox-docker.git
+   git clone -b 3.3.0 https://github.com/netbox-community/netbox-docker.git
    ```
 
-For existing installations, switch to tag 3.2.1 before continuing:
+For existing installations, switch to tag 3.3.0 before continuing:
 
    ```bash
-   git checkout 3.2.1
+   git checkout 3.3.0
    ```
 
 ### Add plugin
