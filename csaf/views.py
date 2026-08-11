@@ -1628,7 +1628,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.model)
-        has_bulk_actions = any([a.startswith('bulk_') for a in actions])
+        has_bulk_actions = any([a.name.startswith('bulk_') for a in actions])
 
         table = self.get_table(childObjects, request, has_bulk_actions)
         self.apply_comparison_column_layout(table)
@@ -1923,7 +1923,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.child_model)
-        has_bulk_actions = any([a.startswith('bulk_') for a in actions])
+        has_bulk_actions = any([a.name.startswith('bulk_') for a in actions])
 
         table_data = self.prep_table_data(request, childObjects, instance)
         table = self.get_table(table_data, request, has_bulk_actions)
