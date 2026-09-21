@@ -70,7 +70,7 @@ An example of these additional actions is in the image below:
 As the CSAF plugin is a standard NetBox plugin, it can be installed according to the [NetBox documentation](https://docs.netbox.dev/en/stable/plugins/#installing-plugins).
 This plugin is compatible with NetBox version 4.6.
 
-This plugin depends on the [DDDC Plugin](https://github.com/DINA-community/DDDC-Netbox-plugin/).
+This plugin depends on the [D3C Plugin](https://github.com/DINA-community/D3C-Netbox-plugin/).
 
 
 ## Adding the plugin to an existing netbox-docker installation
@@ -97,7 +97,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
 1. Create the file `plugin_requirements.txt` with the following content:
 
    ```bash
-   git+https://github.com/DINA-community/DDDC-Netbox-plugin.git
+   git+https://github.com/DINA-community/D3C-Netbox-plugin.git
    git+https://github.com/DINA-community/CSAF-Netbox-Plugin.git
    ```
 
