@@ -68,7 +68,7 @@ An example of these additional actions is in the image below:
 ## Installation of the CSAF Plugin
 
 As the CSAF plugin is a standard NetBox plugin, it can be installed according to the [NetBox documentation](https://docs.netbox.dev/en/stable/plugins/#installing-plugins).
-This plugin is compatible with NetBox version 4.6.
+This plugin is compatible with NetBox version 4.7.
 
 This plugin depends on the [DDDC Plugin](https://github.com/DINA-community/DDDC-Netbox-plugin/).
 
@@ -77,17 +77,17 @@ This plugin depends on the [DDDC Plugin](https://github.com/DINA-community/DDDC-
 
 ### Set the proper netbox docker version
 
-The CSAF Plugin is only compatible with NetBox 4.6 and therefore with netbox-docker 5.0.x.
-For a new install, clone from tag 5.0.2:
+The CSAF Plugin is only compatible with NetBox 4.7 and therefore with netbox-docker 5.1.x.
+For a new install, clone from tag 5.1.1:
 
    ```bash
-   git clone -b 5.0.2 https://github.com/netbox-community/netbox-docker.git
+   git clone -b 5.1.1 https://github.com/netbox-community/netbox-docker.git
    ```
 
-For existing installations, switch to tag 5.0.2 before continuing:
+For existing installations, switch to tag 5.1.1 before continuing:
 
    ```bash
-   git checkout 5.0.2
+   git checkout 5.1.1
    ```
 
 ### Add plugin
@@ -117,7 +117,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    with
 
    ```bash
-   FROM netboxcommunity/netbox:v4.6-5.0.2
+   FROM netboxcommunity/netbox:v4.7-5.1.1
    ```
 
    Matching the version of netbox-docker.
@@ -138,7 +138,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    Also, change the image versions
 
    ```yaml
-      image: netbox:v4.6-5.0.2
+      image: netbox:v4.7-5.1.1
    ```
 
    for all services
