@@ -846,7 +846,7 @@ def triggerMatcher(request, system, token):
 
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     startUrl = f"{baseUrl}/task/start"
     try:
@@ -1018,7 +1018,7 @@ def maybeStartSystem(systems, request):
 def startSystem(request, system, token, matchingConfig=None, forceRecompute=None):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     isMatcher = getFromJson(system, ('isMatcher',), False)
     startUrl = f"{baseUrl}/task/start"
@@ -1069,7 +1069,7 @@ def maybeStopSystem(systems, request):
 def stopSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     url = f"{baseUrl}/task/stop"
     try:
@@ -1122,7 +1122,7 @@ def maybeClear(systems, request):
 def clearSystem(request, system, token, clearType):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl',), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     url = f"{baseUrl}/clear/{clearType}"
     if (clearType == 'assets'):
         url += '?origin_uri=' + getFromJson(system, ('netboxBaseUrl',), '')
@@ -1147,7 +1147,7 @@ def clearSystem(request, system, token, clearType):
 def getStatus(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/task/status"
     try:
@@ -1169,7 +1169,7 @@ def getStatus(request, system, token):
 def getConfig(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/config/"
     try:
@@ -1188,7 +1188,7 @@ def getConfig(request, system, token):
 def setConfig(request, system, token, config):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/config/"
     try:
@@ -1308,7 +1308,7 @@ def getSyncToken(request, subsystem) -> str:
     username = getFromJson(subsystem, ('username',), username)
     password = getFromJson(subsystem, ('password',), password)
 
-    baseUrl = baseUrl.removesuffix('/')
+    baseUrl = baseUrl.rstrip('/')
     token_url = f"{baseUrl}/token"
     try:
         response = requests.post(
