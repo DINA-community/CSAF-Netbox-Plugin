@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
+from netbox.object_actions import AddObject, BulkDelete, BulkEdit
 from netbox.views import generic
 from utilities.exceptions import PermissionsViolation
 from utilities.htmx import htmx_partial
@@ -1387,11 +1388,7 @@ class CsafDocumentListView(generic.ObjectListView):
     template_name = 'csaf/csafdocument_list.html'
     filterset = filtersets.CsafDocumentFilterSet
     filterset_form = forms.CsafDocumentFilterForm
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
 
 
 @register_model_view(models.CsafDocument, name='add', detail=False)
@@ -1517,11 +1514,7 @@ class CsafVulnerabilityListView(generic.ObjectListView):
     table = tables.CsafVulnerabilityTable
     filterset = filtersets.CsafVulnerabilityFilterSet
     filterset_form = forms.CsafVulnerabilityFilterForm
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
 
 
 @register_model_view(models.CsafVulnerability, name='add', detail=False)
@@ -1562,11 +1555,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     table = tables.CsafMatchTable
     base_template = 'generic/object_list.html'
     template_name = 'csaf/csafmatch_list.html'
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
     status_filter_enabled = True
     include_confirmed_in_status_filter = False
     view_mode = 'non_confirmed'
