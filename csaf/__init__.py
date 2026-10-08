@@ -12,6 +12,7 @@ class NetBoxCsafConfig(PluginConfig):
     description = 'Manage CSAF advisories in NetBox'
     version = '0.1.0'
     base_url = 'csaf'
+    min_version = '4.7'
 
     def ready(self):
         """ Initializes the Plugin."""
