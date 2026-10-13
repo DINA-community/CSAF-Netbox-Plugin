@@ -2316,7 +2316,7 @@ def has_change_permission_for_object(user, obj):
 def has_custom_field(obj, field_name):
     if obj is None:
         return False
-    return obj.custom_fields.filter(name=field_name).exists()
+    return any(cf.name == field_name for cf in obj.custom_fields)
 
 
 def can_edit_related_asset(user, match):

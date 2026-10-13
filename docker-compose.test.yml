@@ -1,0 +1,46 @@
+# NetBox compose setup for the csaf unit tests
+# Called by by test.sh
+# Installs the plugins CSAF and D3C on container start
+
+name: netbox-csaf-test
+
+services:
+  netbox:
+    image: docker.io/netboxcommunity/netbox:${NETBOX_DOCKER_VERSION:-v4.7-5.1.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      DB_HOST: postgres
+      DB_NAME: netbox
+      DB_USER: netbox
+      DB_PASSWORD: netbox
+      REDIS_HOST: redis
+      SECRET_KEY: 'r(m)9nLGnz$$(_q3N4z1k(EFsMCjjjzx08x9VhNVcfd%6RF#r!6DE@+V5Zk2X'
+      D3C_SOURCE: ${D3C_SOURCE:-https://github.com/DINA-community/D3C-Netbox-plugin/archive/refs/heads/chore/v1.0.0-beta.1.tar.gz}
+    volumes:
+      - .:/opt/netbox-plugins/csaf:z
+    entrypoint: [/bin/bash, -c]
+    command:
+      - |
+        set -euo pipefail
+        uv pip install --quiet "$$D3C_SOURCE" -e /opt/netbox-plugins/csaf
+        echo 'PLUGINS = ["d3c", "csaf"]' > /etc/netbox/config/plugins.py
+        cd /opt/netbox/netbox
+        exec /opt/netbox/venv/bin/python manage.py test csaf --noinput
+
+  postgres:
+    image: docker.io/postgres:18-alpine
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_USER: netbox
+      POSTGRES_PASSWORD: netbox
+    healthcheck:
+      test: pg_isready --quiet --username netbox
+      interval: 1s
+      retries: 30
+
+  redis:
+    image: docker.io/valkey/valkey:9.1-alpine
