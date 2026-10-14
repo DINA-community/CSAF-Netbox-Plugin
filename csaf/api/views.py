@@ -316,7 +316,7 @@ def getToken() -> str:
     password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba','password'), None)
     password = getFromJson(settings.PLUGINS_CONFIG, ('csaf','isduba_password'), password)
 
-    token_url = f"{keycloakUrl}/realms/isduba/protocol/openid-connect/token"
+    token_url = f"{(keycloakUrl or '').rstrip('/')}/realms/isduba/protocol/openid-connect/token"
     try:
         print(f"Requesting: {token_url}")
         response = requests.post(
