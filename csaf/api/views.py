@@ -107,6 +107,10 @@ def fetchLoadingDocuments():
         docurl = doc.docurl
         if not token:
             token = getToken()
+        if not token:
+            # Login failed, retry the later
+            markDocumentForRetry(doc, retry_interval)
+            continue
         headers = {
             'authorization': 'Bearer ' + token
         }
