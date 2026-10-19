@@ -201,9 +201,9 @@ class CsafMatchListForDeviceTable(NetBoxTable):
     )
     actions = columns.ActionsColumn(
         extra_buttons='' \
-            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow" title="Renew"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -278,9 +278,9 @@ class CsafMatchListForModuleTable(NetBoxTable):
     )
     actions = columns.ActionsColumn(
         extra_buttons='' \
-            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow" title="Renew"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -352,9 +352,9 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
     )
     actions = columns.ActionsColumn(
         extra_buttons='' \
-            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow" title="Renew"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     class Meta(NetBoxTable.Meta):
         model = CsafMatch
@@ -425,9 +425,9 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
     )
     actions = columns.ActionsColumn(
         extra_buttons='' \
-            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow" title="Renew"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
@@ -502,9 +502,9 @@ class CsafMatchTable(NetBoxTable):
     )
     actions = columns.ActionsColumn(
         extra_buttons='' \
-            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
-            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
+            '{% if record.acceptance_status not in "NO" %}<button type="submit" name="renew" value="{{ record.id }}" class="btn btn-yellow" title="Renew"><i class="mdi mdi-arrow-left-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
+            '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
