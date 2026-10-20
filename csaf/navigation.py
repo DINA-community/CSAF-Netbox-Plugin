@@ -59,7 +59,7 @@ synchronisers = PluginMenuItem(
 configuration = PluginMenuItem(
     link='plugins:csaf:config',
     link_text='Configuration',
-    permissions=('csaf.viewConfiguration',),
+    permissions=('csaf.viewConfig_csafmatch',),
     buttons=()
 )
 
