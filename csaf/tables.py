@@ -114,7 +114,7 @@ def render_acceptance_status_dropdown(record, request):
             '<li>'
             '<form method="post" action="{}" class="d-inline">'
             '<input type="hidden" name="csrfmiddlewaretoken" value="{}">'
-            '<input type="hidden" name="pk" value="{}">'
+            '<input type="hidden" name="pk2" value="{}">'
             '<button type="submit" class="{}" name="targetAccStatus" value="{}">{}</button>'
             '</form>'
             '</li>',
