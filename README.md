@@ -60,6 +60,7 @@ These must be added as _Additional actions_ on the _Netbox CSAF|csaf match_ Obje
 - **startSynchronisers**: Start synchronisers and Matcher tasks.
 - **stopSynchronisers**: Stop synchronisers and Matcher tasks.
 - **clearSynchronisers**: Clear the cache database of the Matcher.
+- **viewConfig**: View the configurations of the plugin.
 
 An example of these additional actions is in the image below:
 ![Example additional rights](images/additional_rights.png)

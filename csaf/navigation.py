@@ -4,6 +4,7 @@
 
 from django.conf import settings
 from netbox.plugins import PluginMenu, PluginMenuButton, PluginMenuItem
+from csaf.views import RIGHT_CONFIG_VIEW, RIGHT_SYNC_VIEW, RIGHT_DASHBOARD_VIEW
 
 plugin_settings = settings.PLUGINS_CONFIG["csaf"]
 
@@ -47,19 +48,19 @@ softwareWithMatches = PluginMenuItem(
 dashboard = PluginMenuItem(
     link='plugins:csaf:dashboard',
     link_text='Dashboard',
-    permissions=('csaf.view_csafmatch',),
+    permissions=(RIGHT_DASHBOARD_VIEW,),
     buttons=()
 )
 synchronisers = PluginMenuItem(
     link='plugins:csaf:synchronisers',
     link_text='Synchronisers',
-    permissions=('csaf.viewSynchronisers_csafmatch',),
+    permissions=(RIGHT_SYNC_VIEW,),
     buttons=()
 )
 configuration = PluginMenuItem(
     link='plugins:csaf:config',
     link_text='Configuration',
-    permissions=('csaf.viewConfig_csafmatch',),
+    permissions=(RIGHT_CONFIG_VIEW,),
     buttons=()
 )
 
