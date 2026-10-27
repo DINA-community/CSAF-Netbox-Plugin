@@ -40,7 +40,7 @@ RIGHT_SYNC_VIEW = "csaf.viewSynchronisers_csafmatch"
 RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
-RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+RIGHT_CONFIG_VIEW = "csaf.viewConfig_csafmatch"
 RIGHT_DASHBOARD_VIEW = "csaf.view_csafmatch"
 
 COMPONENT_LABELS = {
@@ -1681,6 +1681,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
                 return self.get(request, args, kwargs)
 
             pk = request.POST.get('pk', None)
+            if pk is None:
+                pk = request.POST.get('pk2', None)
             pks = request.POST.getlist('pk', [pk])
             setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
@@ -1868,7 +1870,12 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
 
-            setAcceptedStatusFor(children, request.POST.getlist('pk'), targetAccStatus, request)
+            pk = request.POST.get('pk', None)
+            if pk is None:
+                pk = request.POST.get('pk2', None)
+            pks = request.POST.getlist('pk', [pk])
+
+            setAcceptedStatusFor(children, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
             elif targetAccStatus in (
