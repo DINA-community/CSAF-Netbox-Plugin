@@ -1539,6 +1539,16 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafVulnerabilityTable
 
 
+def isCompressed(value):
+    return ":" in value
+
+
+def decompress(value):
+    status, pk = value.split(":")
+    pk = int(pk)
+    return status, pk
+
+
 # CsafMatches view for New/Reopened Matches
 @register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
@@ -1676,14 +1686,17 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if isCompressed(targetAccStatus):
+                status, pk = decompress(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return self.get(request, args, kwargs)
 
-            pk = request.POST.get('pk', None)
-            if pk is None:
-                pk = request.POST.get('pk2', None)
-            pks = request.POST.getlist('pk', [pk])
             setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
@@ -1866,14 +1879,16 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if isCompressed(targetAccStatus):
+                status, pk = decompress(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
-
-            pk = request.POST.get('pk', None)
-            if pk is None:
-                pk = request.POST.get('pk2', None)
-            pks = request.POST.getlist('pk', [pk])
 
             setAcceptedStatusFor(children, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:

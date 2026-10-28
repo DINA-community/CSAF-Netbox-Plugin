@@ -83,6 +83,11 @@ def render_remediation_status_with_progress(record):
         progress['in_progress'],
     )
 
+
+def compress(status_value, pk):
+    return f"{status_value}:{pk}"
+
+
 def render_acceptance_status_dropdown(record, request):
     if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
         return record.get_acceptance_status_display()
@@ -95,11 +100,8 @@ def render_acceptance_status_dropdown(record, request):
         is_active = status.value == record.acceptance_status
         item_class = 'dropdown-item active' if is_active else 'dropdown-item'
         menu_items.append((
-            action,
-            csrf_token,
-            record.pk,
             item_class,
-            status.value,
+            compress(status.value,record.pk),
             status.label,
         ))
 
@@ -112,11 +114,7 @@ def render_acceptance_status_dropdown(record, request):
         format_html_join(
             '',
             '<li>'
-            '<form method="post" action="{}" class="d-inline">'
-            '<input type="hidden" name="csrfmiddlewaretoken" value="{}">'
-            '<input type="hidden" name="pk2" value="{}">'
             '<button type="submit" class="{}" name="targetAccStatus" value="{}">{}</button>'
-            '</form>'
             '</li>',
             menu_items,
         ),
