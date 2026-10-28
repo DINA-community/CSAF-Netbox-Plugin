@@ -3,10 +3,12 @@ from dcim.models import DeviceType, Manufacturer, ModuleType
 from django.urls import reverse
 from extras.choices import CustomFieldTypeChoices
 from extras.models import CustomField
-from utilities.testing import ModelViewTestCase, TestCase
+from utilities.testing import TestCase
 
-import csaf.models as models
+from csaf import models
+from csaf.tables import compress
 from csaf.views import has_custom_field
+
 
 class HasCustomFieldTestCase(TestCase):
 
@@ -56,3 +58,26 @@ class CsafMatchListViewTestCase(TestCase):
         self.assertHttpStatus(response, 200)
         self.assertNotContains(response, 'input type="hidden" name="pk2"')
         self.assertNotContains(response, 'input type="hidden" name="pk"')
+
+    def test_set_acceptance_status(self):
+        """Get the csaf match list view and check for hidden pk/pk2 inputs."""
+        self.add_permissions(
+            'csaf.view_csafmatch',
+            'csaf.change_csafmatch',
+            'csaf.edit_csafmatch')
+        payload = {
+            "statusString": "1101",
+            "return_url": "/plugins/csaf/csafmatch/?statusString=1101",
+            "targetAccStatus": compress("O", self.csaf_match.pk)
+        }
+        response = self.client.post(
+            reverse('plugins:csaf:csafmatch_list'),
+            payload
+        )
+        self.assertHttpStatus(response, 302)
+        self.assertEqual(
+            models.CsafMatch.objects.get(
+                pk=self.csaf_match.pk
+            ).acceptance_status,
+            models.CsafMatch.AcceptanceStatus.REOPENED
+        )
