@@ -1,25 +1,25 @@
 """Testcases for utility functions"""
 from django.test import TestCase
-from csaf.tables import compress
-from csaf.views import decompress, is_compressed
+from csaf.tables import encode_acceptance_status
+from csaf.views import decode_acceptance_status, is_encoded_acceptance_status
 
 class UtilitiesTestCase(TestCase):
     """Check the utility functions in tables and views."""
 
-    def test_compress_and_decompress(self):
-        """Check if compress and then decompress leads to same values."""
+    def test_encode_and_decode_acceptance_status(self):
+        """Check if encode and then decode leads to same values."""
         status = "O"
         pk = 3
-        self.assertEqual(decompress(compress(status, pk)), (status, pk))
+        self.assertEqual(decode_acceptance_status(encode_acceptance_status(status, pk)), (status, pk))
 
-    def test_compress(self):
-        """Check interna of compress, and a compressed is_compressed"""
+    def test_encode_acceptance_status(self):
+        """Check interna of encode, and a encoded is_encoded"""
         status = "O"
         pk = 3
-        self.assertEqual(compress(status, pk), f"{status}:{pk}")
-        self.assertTrue(is_compressed(compress(status, pk)))
+        self.assertEqual(encode_acceptance_status(status, pk), f"{status}:{pk}")
+        self.assertTrue(is_encoded_acceptance_status(encode_acceptance_status(status, pk)))
 
-    def test_is_compressed(self):
-        """Check is_compressed: both cases"""
-        self.assertTrue(is_compressed("N:4"))
-        self.assertFalse(is_compressed("N"))
+    def test_is_encoded_acceptance_status(self):
+        """Check is_encoded_acceptance_status: both cases"""
+        self.assertTrue(is_encoded_acceptance_status("N:4"))
+        self.assertFalse(is_encoded_acceptance_status("N"))

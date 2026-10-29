@@ -6,7 +6,7 @@ from extras.models import CustomField
 from utilities.testing import TestCase
 
 from csaf import models
-from csaf.tables import compress
+from csaf.tables import encode_acceptance_status
 from csaf.views import has_custom_field
 
 
@@ -68,7 +68,7 @@ class CsafMatchListViewTestCase(TestCase):
         payload = {
             "statusString": "1101",
             "return_url": "/plugins/csaf/csafmatch/?statusString=1101",
-            "targetAccStatus": compress("O", self.csaf_match.pk)
+            "targetAccStatus": encode_acceptance_status("O", self.csaf_match.pk)
         }
         response = self.client.post(
             reverse('plugins:csaf:csafmatch_list'),

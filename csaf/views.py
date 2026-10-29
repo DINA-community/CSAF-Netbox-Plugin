@@ -1539,11 +1539,11 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafVulnerabilityTable
 
 
-def is_compressed(value):
+def is_encoded_acceptance_status(value):
     return ":" in value
 
 
-def decompress(value):
+def decode_acceptance_status(value):
     status, pk = value.split(":")
     pk = int(pk)
     return status, pk
@@ -1686,8 +1686,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
-            if is_compressed(targetAccStatus):
-                status, pk = decompress(targetAccStatus)
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
                 targetAccStatus = status
                 pks = [pk]
             else:
@@ -1879,8 +1879,8 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
-            if is_compressed(targetAccStatus):
-                status, pk = decompress(targetAccStatus)
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
                 targetAccStatus = status
                 pks = [pk]
             else:
