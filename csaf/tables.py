@@ -171,14 +171,14 @@ class CsafMatchListForDeviceTable(NetBoxTable):
         linkify=True
     )
     tracking_id = tables.Column(
-        accessor='csaf_document.tracking_id',
+        accessor='csaf_document__tracking_id',
         verbose_name='Tracking ID',
     )
     product_name_id = tables.Column(
         verbose_name='Product ID',
     )
     link = tables.Column(
-        accessor='csaf_document.docurl',
+        accessor='csaf_document__docurl',
         verbose_name='Link')
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
@@ -248,14 +248,14 @@ class CsafMatchListForModuleTable(NetBoxTable):
         linkify=True
     )
     tracking_id = tables.Column(
-        accessor='csaf_document.tracking_id',
+        accessor='csaf_document__tracking_id',
         verbose_name='Tracking ID',
     )
     product_name_id = tables.Column(
         verbose_name='Product ID',
     )
     link = tables.Column(
-        accessor='csaf_document.docurl',
+        accessor='csaf_document__docurl',
         verbose_name='Link')
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
@@ -325,7 +325,7 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
         linkify=True
     )
     tracking_id = tables.Column(
-        accessor='csaf_document.tracking_id',
+        accessor='csaf_document__tracking_id',
         verbose_name='Tracking ID',
     )
     product_name_id = tables.Column(
@@ -395,14 +395,14 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         linkify=True
     )
     tracking_id = tables.Column(
-        accessor='csaf_document.tracking_id',
+        accessor='csaf_document__tracking_id',
         verbose_name='Tracking ID',
     )
     product_name_id = tables.Column(
         verbose_name='Product ID',
     )
     link = tables.Column(
-        accessor='csaf_document.docurl',
+        accessor='csaf_document__docurl',
         verbose_name='Link')
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
@@ -472,14 +472,14 @@ class CsafMatchTable(NetBoxTable):
         linkify=True
     )
     tracking_id = tables.Column(
-        accessor='csaf_document.tracking_id',
+        accessor='csaf_document__tracking_id',
         verbose_name='Tracking ID',
     )
     product_name_id = tables.Column(
         verbose_name='Product ID',
     )
     link = tables.Column(
-        accessor='csaf_document.docurl',
+        accessor='csaf_document__docurl',
         verbose_name='Link')
     score = tables.TemplateColumn(
         template_code='{{ value|floatformat:0 }}'
@@ -660,22 +660,22 @@ class CsafAssetVulnerabilityTable(NetBoxTable):
         orderable=False,
     )
     cve = tables.Column(
-        accessor='vulnerability.cve',
+        accessor='vulnerability__cve',
         verbose_name='CVE',
         orderable=False,
     )
     title = tables.Column(
-        accessor='vulnerability.title',
+        accessor='vulnerability__title',
         verbose_name='Title',
         orderable=False,
     )
     cwe = tables.Column(
-        accessor='vulnerability.cwe',
+        accessor='vulnerability__cwe',
         verbose_name='CWE',
         orderable=False,
     )
     cvss_base_score = tables.Column(
-        accessor='vulnerability.cvss_base_score',
+        accessor='vulnerability__cvss_base_score',
         verbose_name='CVSS Base Score',
         orderable=False,
     )
@@ -685,12 +685,12 @@ class CsafAssetVulnerabilityTable(NetBoxTable):
         orderable=False,
     )
     match_acceptance = tables.Column(
-        accessor='match.acceptance_status',
+        accessor='match__acceptance_status',
         verbose_name='Match Acceptance',
         orderable=False,
     )
     product_name_id = tables.Column(
-        accessor='match.product_name_id',
+        accessor='match__product_name_id',
         verbose_name='Product ID',
         orderable=False,
     )
