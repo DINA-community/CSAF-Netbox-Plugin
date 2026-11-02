@@ -40,7 +40,7 @@ RIGHT_SYNC_VIEW = "csaf.viewSynchronisers_csafmatch"
 RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
-RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+RIGHT_CONFIG_VIEW = "csaf.viewConfig_csafmatch"
 RIGHT_DASHBOARD_VIEW = "csaf.view_csafmatch"
 
 COMPONENT_LABELS = {
@@ -1539,6 +1539,16 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafVulnerabilityTable
 
 
+def is_encoded_acceptance_status(value):
+    return ":" in value
+
+
+def decode_acceptance_status(value):
+    status, pk = value.split(":")
+    pk = int(pk)
+    return status, pk
+
+
 # CsafMatches view for New/Reopened Matches
 @register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
@@ -1676,12 +1686,17 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return self.get(request, args, kwargs)
 
-            pk = request.POST.get('pk', None)
-            pks = request.POST.getlist('pk', [pk])
             setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
@@ -1864,11 +1879,18 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
 
-            setAcceptedStatusFor(children, request.POST.getlist('pk'), targetAccStatus, request)
+            setAcceptedStatusFor(children, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
             elif targetAccStatus in (
