@@ -13,6 +13,16 @@
 {% endblock extra_controls %}
 
 {% block content %}
+  {% if object.description %}
+  <div class="card mb-4">
+    <div class="card-header">
+      {% trans "Matching Description" %}
+    </div>
+    <div class="card-body">
+      {{ object.description|linebreaksbr }}
+    </div>
+  </div>
+  {% endif %}
   <div class="row mb-3">
     <div class="col col-md-6">
       <div class="card">
