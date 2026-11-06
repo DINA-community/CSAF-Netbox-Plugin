@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
+from netbox.object_actions import AddObject, BulkDelete, BulkEdit
 from netbox.views import generic
 from utilities.exceptions import PermissionsViolation
 from utilities.htmx import htmx_partial
@@ -39,7 +40,7 @@ RIGHT_SYNC_VIEW = "csaf.viewSynchronisers_csafmatch"
 RIGHT_SYNC_START = "csaf.startSynchronisers_csafmatch"
 RIGHT_SYNC_STOP = "csaf.stopSynchronisers_csafmatch"
 RIGHT_SYNC_CLEAR = "csaf.clearSynchronisers_csafmatch"
-RIGHT_CONFIG_VIEW = "csaf.ViewConfig"
+RIGHT_CONFIG_VIEW = "csaf.viewConfig_csafmatch"
 RIGHT_DASHBOARD_VIEW = "csaf.view_csafmatch"
 
 COMPONENT_LABELS = {
@@ -846,7 +847,7 @@ def triggerMatcher(request, system, token):
 
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     startUrl = f"{baseUrl}/task/start"
     try:
@@ -1018,7 +1019,7 @@ def maybeStartSystem(systems, request):
 def startSystem(request, system, token, matchingConfig=None, forceRecompute=None):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     isMatcher = getFromJson(system, ('isMatcher',), False)
     startUrl = f"{baseUrl}/task/start"
@@ -1069,7 +1070,7 @@ def maybeStopSystem(systems, request):
 def stopSystem(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     url = f"{baseUrl}/task/stop"
     try:
@@ -1122,7 +1123,7 @@ def maybeClear(systems, request):
 def clearSystem(request, system, token, clearType):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl',), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     url = f"{baseUrl}/clear/{clearType}"
     if (clearType == 'assets'):
         url += '?origin_uri=' + getFromJson(system, ('netboxBaseUrl',), '')
@@ -1147,7 +1148,7 @@ def clearSystem(request, system, token, clearType):
 def getStatus(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/task/status"
     try:
@@ -1169,7 +1170,7 @@ def getStatus(request, system, token):
 def getConfig(request, system, token):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/config/"
     try:
@@ -1188,7 +1189,7 @@ def getConfig(request, system, token):
 def setConfig(request, system, token, config):
     verifySsl = getFromJson(settings.PLUGINS_CONFIG, ('csaf','synchronisers','verify_ssl'), True)
     verifySsl = getFromJson(system, ('verify_ssl'), verifySsl)
-    baseUrl = getFromJson(system, ('url',), None)
+    baseUrl = getFromJson(system, ('url',), None).rstrip('/')
     name = getFromJson(system, ('name',), 'Unnamed')
     status_url = f"{baseUrl}/config/"
     try:
@@ -1308,7 +1309,7 @@ def getSyncToken(request, subsystem) -> str:
     username = getFromJson(subsystem, ('username',), username)
     password = getFromJson(subsystem, ('password',), password)
 
-    baseUrl = baseUrl.removesuffix('/')
+    baseUrl = baseUrl.rstrip('/')
     token_url = f"{baseUrl}/token"
     try:
         response = requests.post(
@@ -1387,11 +1388,7 @@ class CsafDocumentListView(generic.ObjectListView):
     template_name = 'csaf/csafdocument_list.html'
     filterset = filtersets.CsafDocumentFilterSet
     filterset_form = forms.CsafDocumentFilterForm
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
 
 
 @register_model_view(models.CsafDocument, name='add', detail=False)
@@ -1517,11 +1514,7 @@ class CsafVulnerabilityListView(generic.ObjectListView):
     table = tables.CsafVulnerabilityTable
     filterset = filtersets.CsafVulnerabilityFilterSet
     filterset_form = forms.CsafVulnerabilityFilterForm
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
 
 
 @register_model_view(models.CsafVulnerability, name='add', detail=False)
@@ -1546,6 +1539,16 @@ class CsafVulnerabilityBulkDeleteView(generic.BulkDeleteView):
     table = tables.CsafVulnerabilityTable
 
 
+def is_encoded_acceptance_status(value):
+    return ":" in value
+
+
+def decode_acceptance_status(value):
+    status, pk = value.split(":")
+    pk = int(pk)
+    return status, pk
+
+
 # CsafMatches view for New/Reopened Matches
 @register_model_view(models.CsafMatch, name='list', path='', detail=False)
 class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
@@ -1562,11 +1565,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     table = tables.CsafMatchTable
     base_template = 'generic/object_list.html'
     template_name = 'csaf/csafmatch_list.html'
-    actions = {
-        'add': {'add'},
-        'bulk_edit': {'change'},
-        'bulk_delete': {'delete'},
-    }
+    actions = (AddObject, BulkEdit, BulkDelete)
     status_filter_enabled = True
     include_confirmed_in_status_filter = False
     view_mode = 'non_confirmed'
@@ -1628,7 +1627,8 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.model)
-        has_bulk_actions = any([a.startswith('bulk_') for a in actions])
+        has_bulk_actions = any([a.name.startswith('bulk_') for a in actions])
+        actions_name = {a.name for a in actions}
 
         table = self.get_table(childObjects, request, has_bulk_actions)
         self.apply_comparison_column_layout(table)
@@ -1648,6 +1648,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
             'table_config': f'{table.name}_config',
             'table_configs': get_table_configs(table, request.user),
             'actions': actions,
+            'actions_name': actions_name,
             'acceptance_status': acceptance_status,
             'statusString': statusString,
             'enums': {'acceptance': models.CsafMatch.AcceptanceStatus, 'remediation': models.CsafMatch.RemediationStatus},
@@ -1685,12 +1686,17 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return self.get(request, args, kwargs)
 
-            pk = request.POST.get('pk', None)
-            pks = request.POST.getlist('pk', [pk])
             setAcceptedStatusFor(self.queryset, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
@@ -1873,11 +1879,18 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         targetAccStatus = request.POST.get('targetAccStatus', "")
         if targetAccStatus:
+            if is_encoded_acceptance_status(targetAccStatus):
+                status, pk = decode_acceptance_status(targetAccStatus)
+                targetAccStatus = status
+                pks = [pk]
+            else:
+                pks = request.POST.getlist('pk', [])
+
             if targetAccStatus not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown CSAF-Match AcceptanceStatus: {targetAccStatus}.")
                 return redirect(self.get_return_url(request))
 
-            setAcceptedStatusFor(children, request.POST.getlist('pk'), targetAccStatus, request)
+            setAcceptedStatusFor(children, pks, targetAccStatus, request)
             if targetAccStatus == models.CsafMatch.AcceptanceStatus.CONFIRMED:
                 redirect_to_confirmed = True
             elif targetAccStatus in (
@@ -1923,7 +1936,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         # Determine the available actions
         actions = self.get_permitted_actions(request.user, model=self.child_model)
-        has_bulk_actions = any([a.startswith('bulk_') for a in actions])
+        has_bulk_actions = any([a.name.startswith('bulk_') for a in actions])
 
         table_data = self.prep_table_data(request, childObjects, instance)
         table = self.get_table(table_data, request, has_bulk_actions)
@@ -2325,7 +2338,7 @@ def has_change_permission_for_object(user, obj):
 def has_custom_field(obj, field_name):
     if obj is None:
         return False
-    return obj.custom_fields.filter(name=field_name).exists()
+    return any(cf.name == field_name for cf in obj.custom_fields)
 
 
 def can_edit_related_asset(user, match):
