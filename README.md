@@ -60,6 +60,7 @@ These must be added as _Additional actions_ on the _Netbox CSAF|csaf match_ Obje
 - **startSynchronisers**: Start synchronisers and Matcher tasks.
 - **stopSynchronisers**: Stop synchronisers and Matcher tasks.
 - **clearSynchronisers**: Clear the cache database of the Matcher.
+- **viewConfig**: View the configurations of the plugin.
 
 An example of these additional actions is in the image below:
 ![Example additional rights](images/additional_rights.png)
@@ -68,26 +69,26 @@ An example of these additional actions is in the image below:
 ## Installation of the CSAF Plugin
 
 As the CSAF plugin is a standard NetBox plugin, it can be installed according to the [NetBox documentation](https://docs.netbox.dev/en/stable/plugins/#installing-plugins).
-This plugin is compatible with NetBox version 4.3.1.
+This plugin is compatible with NetBox version 4.7.
 
-This plugin depends on the [DDDC Plugin](https://github.com/DINA-community/DDDC-Netbox-plugin/).
+This plugin depends on the [D3C Plugin](https://github.com/DINA-community/D3C-Netbox-plugin/).
 
 
 ## Adding the plugin to an existing netbox-docker installation
 
 ### Set the proper netbox docker version
 
-The CSAF Plugin is only compatible with NetBox 4.3 and therefore with netbox-docker 3.3.0.
-For a new install, clone from tag 3.3.0:
+The CSAF Plugin is only compatible with NetBox 4.7 and therefore with netbox-docker 5.1.x.
+For a new install, clone from tag 5.1.1:
 
    ```bash
-   git clone -b 3.3.0 https://github.com/netbox-community/netbox-docker.git
+   git clone -b 5.1.1 https://github.com/netbox-community/netbox-docker.git
    ```
 
-For existing installations, switch to tag 3.3.0 before continuing:
+For existing installations, switch to tag 5.1.1 before continuing:
 
    ```bash
-   git checkout 3.3.0
+   git checkout 5.1.1
    ```
 
 ### Add plugin
@@ -97,7 +98,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
 1. Create the file `plugin_requirements.txt` with the following content:
 
    ```bash
-   git+https://github.com/DINA-community/DDDC-Netbox-plugin.git
+   git+https://github.com/DINA-community/D3C-Netbox-plugin.git
    git+https://github.com/DINA-community/CSAF-Netbox-Plugin.git
    ```
 
@@ -117,7 +118,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    with
 
    ```bash
-   FROM netboxcommunity/netbox:v4.3-3.3.0
+   FROM netboxcommunity/netbox:v4.7-5.1.1
    ```
 
    Matching the version of netbox-docker.
@@ -138,7 +139,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    Also, change the image versions
 
    ```yaml
-      image: netbox:v4.3-3.3.0
+      image: netbox:v4.7-5.1.1
    ```
 
    for all services
