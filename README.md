@@ -79,16 +79,16 @@ This plugin depends on the [D3C Plugin](https://github.com/DINA-community/D3C-Ne
 ### Set the proper netbox docker version
 
 The CSAF Plugin is only compatible with NetBox 4.7 and therefore with netbox-docker 5.1.x.
-For a new install, clone from tag 5.1.1:
+For a new install, clone from tag 5.1.2:
 
    ```bash
-   git clone -b 5.1.1 https://github.com/netbox-community/netbox-docker.git
+   git clone -b 5.1.2 https://github.com/netbox-community/netbox-docker.git
    ```
 
-For existing installations, switch to tag 5.1.1 before continuing:
+For existing installations, switch to tag 5.1.2 before continuing:
 
    ```bash
-   git checkout 5.1.1
+   git checkout 5.1.2
    ```
 
 ### Add plugin
@@ -118,7 +118,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    with
 
    ```bash
-   FROM netboxcommunity/netbox:v4.7-5.1.1
+   FROM netboxcommunity/netbox:v4.7-5.1.2
    ```
 
    Matching the version of netbox-docker.
@@ -139,7 +139,7 @@ The Plugin can be added to any existing or new setup of netbox-docker by followi
    Also, change the image versions
 
    ```yaml
-      image: netbox:v4.7-5.1.1
+      image: netbox:v4.7-5.1.2
    ```
 
    for all services
