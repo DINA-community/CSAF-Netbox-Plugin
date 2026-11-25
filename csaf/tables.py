@@ -83,7 +83,7 @@ def render_remediation_status_with_progress(record):
         progress['in_progress'],
     )
 
-def render_acceptance_status_dropdown(record, request):
+def render_acceptance_status_dropdown(record, request, exclude_new=False):
     if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
         return record.get_acceptance_status_display()
 
@@ -94,6 +94,8 @@ def render_acceptance_status_dropdown(record, request):
     for status in record.AcceptanceStatus:
         is_active = status.value == record.acceptance_status
         item_class = 'dropdown-item active' if is_active else 'dropdown-item'
+        if exclude_new and status.value == record.AcceptanceStatus.NEW:
+            continue
         menu_items.append((
             action,
             csrf_token,
@@ -233,7 +235,11 @@ class CsafMatchListForDeviceTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForModuleTable(NetBoxTable):
@@ -310,7 +316,11 @@ class CsafMatchListForModuleTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
@@ -380,7 +390,11 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -457,7 +471,11 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchTable(NetBoxTable):
@@ -534,7 +552,11 @@ class CsafMatchTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class DevicesWithMatchTable(DeviceTable):
