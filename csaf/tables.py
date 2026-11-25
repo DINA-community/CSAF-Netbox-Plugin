@@ -8,7 +8,6 @@ from dcim.tables.modules import ModuleTable
 from django.db.models import F
 from django.urls import reverse
 from django.shortcuts import render
-from django.middleware.csrf import get_token
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable, columns
@@ -83,11 +82,15 @@ def render_remediation_status_with_progress(record):
         progress['in_progress'],
     )
 
+
+def encode_acceptance_status(status_value, pk):
+    return f"{status_value}:{pk}"
+
+
 def render_acceptance_status_dropdown(record, request, exclude_new=False):
     if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
         return record.get_acceptance_status_display()
 
-    csrf_token = get_token(request)
     action = request.get_full_path()
     current_label = record.get_acceptance_status_display()
     menu_items = []
@@ -97,11 +100,8 @@ def render_acceptance_status_dropdown(record, request, exclude_new=False):
         if exclude_new and status.value == record.AcceptanceStatus.NEW:
             continue
         menu_items.append((
-            action,
-            csrf_token,
-            record.pk,
             item_class,
-            status.value,
+            encode_acceptance_status(status.value, record.pk),
             status.label,
         ))
 
@@ -114,11 +114,7 @@ def render_acceptance_status_dropdown(record, request, exclude_new=False):
         format_html_join(
             '',
             '<li>'
-            '<form method="post" action="{}" class="d-inline">'
-            '<input type="hidden" name="csrfmiddlewaretoken" value="{}">'
-            '<input type="hidden" name="pk2" value="{}">'
             '<button type="submit" class="{}" name="targetAccStatus" value="{}">{}</button>'
-            '</form>'
             '</li>',
             menu_items,
         ),
