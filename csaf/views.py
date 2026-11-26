@@ -1434,7 +1434,9 @@ class CsafMatchView(generic.ObjectView):
             if target_acceptance_status not in models.CsafMatch.AcceptanceStatus:
                 messages.error(request, f"Unknown acceptance status: {target_acceptance_status}")
                 return redirect(request.path)
-
+            if target_acceptance_status == models.CsafMatch.AcceptanceStatus.NEW:
+                messages.error(request, "'New' cannot be set from the match page.")
+                return redirect(request.path)
             if instance.acceptance_status != target_acceptance_status:
                 instance.acceptance_status = target_acceptance_status
                 instance.save(update_fields=['acceptance_status'])
@@ -1569,15 +1571,12 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
     status_filter_enabled = True
     include_confirmed_in_status_filter = False
     view_mode = 'non_confirmed'
+    remediation_column_mode = 'show'
+    score_column_mode = 'show'
 
     def apply_comparison_column_layout(self, table):
         if 'comparison' not in table.columns.names():
             return
-
-        if self.view_mode == 'non_confirmed':
-            table.columns.hide('comparison')
-            return
-
         table.columns.show('comparison')
         sequence = [name for name in table.sequence if name != 'comparison']
         if 'actions' in sequence:
@@ -1586,6 +1585,16 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         else:
             sequence.append('comparison')
         table.sequence = sequence
+
+    def apply_nonconfirmed_column_layout(self, table):
+        if 'remediation_status' not in table.columns.names():
+            return
+        if self.view_mode == 'non_confirmed':
+            table.columns.hide('remediation_status')
+            table.columns.show('score')
+        else:
+            table.columns.show('remediation_status')
+            table.columns.hide('score')
 
     def get_list_queryset(self, request):
         queryset = self.queryset
@@ -1633,6 +1642,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         table = self.get_table(childObjects, request, has_bulk_actions)
         table.exclude_new_acceptance_status = self.view_mode == 'confirmed'
         self.apply_comparison_column_layout(table)
+        self.apply_nonconfirmed_column_layout(table)
 
         # If this is an HTMX request, return only the rendered table HTML
         if htmx_partial(request):
@@ -1815,6 +1825,24 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     linkName = 'None'
     comparison_column_mode = 'hide'
     exclude_new_acceptance_status = False
+    remediation_column_mode = 'show'
+    score_column_mode = 'show'
+
+    def apply_remediation_column_layout(self, table):
+        if 'remediation_status' not in table.columns.names():
+            return
+        if self.remediation_column_mode == 'hide':
+            table.columns.hide('remediation_status')
+        else:
+            table.columns.show('remediation_status')
+
+    def apply_score_column_layout(self, table):
+        if 'score' not in table.columns.names():
+            return
+        if self.score_column_mode == 'hide':
+            table.columns.hide('score')
+        else:
+            table.columns.show('score')
 
     def apply_comparison_column_layout(self, table):
         if 'comparison' not in table.columns.names():
@@ -1944,6 +1972,8 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
         table = self.get_table(table_data, request, has_bulk_actions)
         table.exclude_new_acceptance_status = self.exclude_new_acceptance_status
         self.apply_comparison_column_layout(table)
+        self.apply_remediation_column_layout(table)
+        self.apply_score_column_layout(table)
 
         # If this is an HTMX request, return only the rendered table HTML
         if htmx_partial(request):
@@ -2547,7 +2577,8 @@ class CsafNewMatchListForDeviceView(CsafMatchListFor):
     queryset = Device.objects.all()
     table = tables.CsafMatchListForDeviceTable
     linkName= 'device'
-    comparison_column_mode = 'hide'
+    comparison_column_mode = 'rightmost'
+    remediation_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -2581,6 +2612,7 @@ class CsafConfirmedMatchListForDeviceView(CsafMatchListFor):
     linkName= 'device'
     comparison_column_mode = 'rightmost'
     exclude_new_acceptance_status = True
+    score_column_mode = 'hide'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -2608,7 +2640,8 @@ class CsafNewMatchListForModuleView(CsafMatchListFor):
     queryset = Module.objects.all()
     table = tables.CsafMatchListForModuleTable
     linkName= 'module'
-    comparison_column_mode = 'hide'
+    comparison_column_mode = 'rightmost'
+    remediation_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -2642,6 +2675,7 @@ class CsafMatchListForModuleView(CsafMatchListFor):
     linkName= 'module'
     comparison_column_mode = 'rightmost'
     exclude_new_acceptance_status = True
+    score_column_mode = 'hide'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -2668,7 +2702,8 @@ class CsafNewMatchListForCsafDocumentView(CsafMatchListFor):
     queryset = models.CsafDocument.objects.all()
     table = tables.CsafMatchListForCsafDocumentTable
     linkName= 'document'
-    comparison_column_mode = 'hide'
+    comparison_column_mode = 'rightmost'
+    remediation_column_mode = 'hide'
 
     tab = ViewTab(
         label='Potential CSAF Matches',
@@ -2738,6 +2773,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     linkName= 'document'
     comparison_column_mode = 'rightmost'
     exclude_new_acceptance_status = True
+    score_column_mode = 'hide'
 
     tab = ViewTab(
         label='CSAF Matches',
@@ -2779,14 +2815,14 @@ class CsafVulnerabilityListForCsafDocumentView(generic.ObjectChildrenView):
 
 # New CsafMatches view for one Software
 @register_model_view(model=Software, name='newmatchlistforsoftware', path='csafmatchesnew', )
-class CsafMatchListForSoftwareView(CsafMatchListFor):
+class CsafNewMatchListForSoftwareView(CsafMatchListFor):
     """ Handles the request of displaying multiple Csaf Matches associated to a Software Entity. """
     additional_permissions=('csaf.view_csafmatch',)
     queryset = Software.objects.all()
     table = tables.CsafMatchListForSoftwareTable
     linkName= 'software'
-    comparison_column_mode = 'hide'
-
+    comparison_column_mode = 'rightmost'
+    remediation_column_mode = 'hide'
     tab = ViewTab(
         label='Potential CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
@@ -2819,6 +2855,7 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
     linkName= 'software'
     comparison_column_mode = 'rightmost'
     exclude_new_acceptance_status = True
+    score_column_mode = 'hide'
 
     tab = ViewTab(
         label='CSAF Matches',
