@@ -85,7 +85,7 @@ def encode_acceptance_status(status_value, pk):
     return f"{status_value}:{pk}"
 
 
-def render_acceptance_status_dropdown(record, request):
+def render_acceptance_status_dropdown(record, request, exclude_new=False):
     if request is None or not request.user.has_perm('csaf.edit_csafmatch'):
         return record.get_acceptance_status_display()
 
@@ -95,6 +95,8 @@ def render_acceptance_status_dropdown(record, request):
     for status in record.AcceptanceStatus:
         is_active = status.value == record.acceptance_status
         item_class = 'dropdown-item active' if is_active else 'dropdown-item'
+        if exclude_new and status.value == record.AcceptanceStatus.NEW:
+            continue
         menu_items.append((
             item_class,
             encode_acceptance_status(status.value, record.pk),
@@ -227,7 +229,11 @@ class CsafMatchListForDeviceTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForModuleTable(NetBoxTable):
@@ -304,7 +310,11 @@ class CsafMatchListForModuleTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForCsafDocumentTable(NetBoxTable):
@@ -374,7 +384,11 @@ class CsafMatchListForCsafDocumentTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchListForSoftwareTable(NetBoxTable):
@@ -451,7 +465,11 @@ class CsafMatchListForSoftwareTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class CsafMatchTable(NetBoxTable):
@@ -500,6 +518,10 @@ class CsafMatchTable(NetBoxTable):
             '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
             '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
+    def __init__(self, *args, **kwargs):
+        self.exclude_new_acceptance_status = False
+        super().__init__(*args, **kwargs)
+
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
         return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
@@ -528,7 +550,11 @@ class CsafMatchTable(NetBoxTable):
         return render_remediation_status_with_progress(record)
 
     def render_acceptance_status(self, record):
-        return render_acceptance_status_dropdown(record, getattr(self, 'request', None))
+        return render_acceptance_status_dropdown(
+            record,
+            getattr(self, 'request', None),
+            exclude_new=self.exclude_new_acceptance_status
+        )
 
 
 class DevicesWithMatchTable(DeviceTable):

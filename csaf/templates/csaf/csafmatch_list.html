@@ -136,11 +136,13 @@
               </button>
               <ul class="dropdown-menu">
                 {% for entry in enums.acceptance %}
-                  <li>
-                    <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetAccStatus" value="{{entry.value}}">
-                    {% trans entry.label %}
-                    </button>
-                  </li>
+                  {% if not table.exclude_new_acceptance_status or entry != enums.acceptance.NEW %}
+                    <li>
+                      <button type="submit" {% formaction %}="{{ request.path }}" class="dropdown-item" name="targetAccStatus" value="{{entry.value}}">
+                      {% trans entry.label %}
+                      </button>
+                    </li>
+                  {% endif %}
                 {% endfor %}
               </ul>
             </div>

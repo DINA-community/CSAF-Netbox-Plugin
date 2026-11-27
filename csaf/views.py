@@ -1640,6 +1640,7 @@ class CsafMatchListView(generic.ObjectListView, GetReturnURLMixin):
         actions_name = {a.name for a in actions}
 
         table = self.get_table(childObjects, request, has_bulk_actions)
+        table.exclude_new_acceptance_status = self.view_mode == 'confirmed'
         self.apply_comparison_column_layout(table)
         self.apply_nonconfirmed_column_layout(table)
 
@@ -1823,6 +1824,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
     template_name = 'csaf/csafmatch_list.html'
     linkName = 'None'
     comparison_column_mode = 'hide'
+    exclude_new_acceptance_status = False
     remediation_column_mode = 'show'
     score_column_mode = 'show'
 
@@ -1968,6 +1970,7 @@ class CsafMatchListFor(generic.ObjectChildrenView, GetReturnURLMixin):
 
         table_data = self.prep_table_data(request, childObjects, instance)
         table = self.get_table(table_data, request, has_bulk_actions)
+        table.exclude_new_acceptance_status = self.exclude_new_acceptance_status
         self.apply_comparison_column_layout(table)
         self.apply_remediation_column_layout(table)
         self.apply_score_column_layout(table)
@@ -2608,7 +2611,9 @@ class CsafConfirmedMatchListForDeviceView(CsafMatchListFor):
     table = tables.CsafMatchListForDeviceTable
     linkName= 'device'
     comparison_column_mode = 'rightmost'
+    exclude_new_acceptance_status = True
     score_column_mode = 'hide'
+
     tab = ViewTab(
         label='CSAF Matches',
         badge=lambda obj: models.CsafMatch.objects.filter(
@@ -2669,6 +2674,7 @@ class CsafMatchListForModuleView(CsafMatchListFor):
     table = tables.CsafMatchListForModuleTable
     linkName= 'module'
     comparison_column_mode = 'rightmost'
+    exclude_new_acceptance_status = True
     score_column_mode = 'hide'
 
     tab = ViewTab(
@@ -2766,6 +2772,7 @@ class CsafMatchListForCsafDocumentView(CsafMatchListFor):
     table = tables.CsafMatchListForCsafDocumentTable
     linkName= 'document'
     comparison_column_mode = 'rightmost'
+    exclude_new_acceptance_status = True
     score_column_mode = 'hide'
 
     tab = ViewTab(
@@ -2847,6 +2854,7 @@ class CsafMatchListForSoftwareView(CsafMatchListFor):
     table = tables.CsafMatchListForSoftwareTable
     linkName= 'software'
     comparison_column_mode = 'rightmost'
+    exclude_new_acceptance_status = True
     score_column_mode = 'hide'
 
     tab = ViewTab(
