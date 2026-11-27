@@ -518,6 +518,10 @@ class CsafMatchTable(NetBoxTable):
             '{% if record.acceptance_status != "C" %}<button type="submit" name="accept" value="{{ record.id }}" class="btn btn-green" title="Accept"><i class="mdi mdi-arrow-right-thick"></i></button>{% endif %}' \
             '{% if record.acceptance_status != "F" %}<button type="submit" name="reject" value="{{ record.id }}" class="btn btn-red" title="Reject"><i class="mdi mdi-close-thick"></i></button>{% endif %}')
 
+    def __init__(self, *args, **kwargs):
+        self.exclude_new_acceptance_status = False
+        super().__init__(*args, **kwargs)
+
     def render_link(self, value):
         external = value.replace("/api/documents/","/#/documents/")
         return format_html('<a href="{}" target="_blank"><i class="mdi mdi-link-variant"></i></a>', external)
